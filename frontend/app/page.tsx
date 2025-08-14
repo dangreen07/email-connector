@@ -1,103 +1,156 @@
-import Image from "next/image";
+import Link from "next/link";
+import Container from "@/components/Container";
+import { GmailIcon, OutlookIcon, ImapIcon } from "@/components/icons";
 
 export default function Home() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <>
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_60%_at_50%_0%,rgb(99_102_241/0.15),transparent_60%)]"></div>
+        <Container className="pt-20 pb-16 sm:pt-24 sm:pb-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-indigo-500">Developer-first email connectivity</p>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">One API for Every Inbox</h1>
+            <p className="mt-4 text-lg text-foreground/80">
+              Connect Gmail, Outlook, and IMAP in minutes — no OAuth headaches or vendor lock-in.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/sign-up"
+                className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
+              >
+                Get Started
+              </Link>
+              <Link
+                href="/docs"
+                className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-5 py-3 text-sm font-medium text-foreground/90 hover:border-foreground/40"
+              >
+                View Docs
+              </Link>
+            </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+            {/* Trust badges */}
+            <div className="mt-10 flex items-center justify-center gap-6 text-foreground/70">
+              <GmailIcon className="h-6 w-6" />
+              <OutlookIcon className="h-6 w-6" />
+              <ImapIcon className="h-6 w-6" />
+            </div>
+
+            {/* Code snippet */}
+            <div className="mt-10 rounded-xl border border-foreground/10 bg-foreground/5 p-4 text-left">
+              <pre className="text-sm leading-6 text-foreground/90 overflow-x-auto"><code>{`import { ConnectInbox } from "emaillinkup-react";
+
+<ConnectInbox onConnected={(token) => {
+  // Use token with /messages and /send
+}} />`}</code></pre>
+            </div>
+          </div>
+        </Container>
+      </section>
+
+      {/* Social proof */}
+      <section aria-label="Trusted by" className="py-10">
+        <Container>
+          <div className="grid grid-cols-2 gap-6 opacity-70 sm:grid-cols-4 md:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-8 rounded bg-foreground/10" />
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* Features */}
+      <section className="py-16 sm:py-24">
+        <Container>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Everything you need to integrate email fast</h2>
+            <p className="mt-3 text-foreground/80">Unified endpoints, webhooks, secure tokens, and a great developer experience.</p>
+          </div>
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { title: "Unified API", desc: "One endpoint for all providers." },
+              { title: "Fast Setup", desc: "Connect an inbox in under 5 minutes." },
+              { title: "Simple Pricing", desc: "No hidden fees, flat rate." },
+              { title: "Webhooks", desc: "React to new mail instantly." },
+              { title: "Secure by default", desc: "OAuth tokens encrypted at rest." },
+              { title: "Great DX", desc: "Copy-paste snippets, sandbox keys." },
+            ].map((f) => (
+              <div key={f.title} className="rounded-xl border border-foreground/10 bg-background p-6">
+                <h3 className="text-base font-semibold">{f.title}</h3>
+                <p className="mt-2 text-sm text-foreground/80">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* How it works */}
+      <section className="py-16 sm:py-24">
+        <Container>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">How it works</h2>
+          </div>
+          <ol className="mt-10 grid gap-6 sm:grid-cols-3">
+            {[
+              { step: 1, title: "Add our Connect button", desc: "Drop-in UI to connect inboxes." },
+              { step: 2, title: "User authenticates", desc: "Google/Microsoft or IMAP in one flow." },
+              { step: 3, title: "Call /messages and /send", desc: "Use a single token for all operations." },
+            ].map((s) => (
+              <li key={s.step} className="rounded-xl border border-foreground/10 bg-background p-6">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white text-sm font-semibold">{s.step}</span>
+                <h3 className="mt-3 text-base font-semibold">{s.title}</h3>
+                <p className="mt-2 text-sm text-foreground/80">{s.desc}</p>
+              </li>
+            ))}
+          </ol>
+        </Container>
+      </section>
+
+      {/* Bottom CTA */}
+      <section className="py-16 sm:py-24">
+        <Container>
+          <div className="mx-auto max-w-2xl text-center rounded-2xl border border-foreground/10 bg-[radial-gradient(60%_80%_at_50%_-20%,rgb(99_102_241/0.15),transparent_60%)] p-10">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Ready to simplify email integration?</h2>
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <Link href="/sign-up" className="rounded-md bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500">Get Started</Link>
+            </div>
+          </div>
+        </Container>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-16 sm:py-24">
+        <Container>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">FAQs</h2>
+            <p className="mt-3 text-foreground/80">Answers to common questions.</p>
+          </div>
+          <div className="mx-auto mt-10 max-w-3xl divide-y divide-foreground/10 rounded-xl border border-foreground/10">
+            {[
+              { q: "Which providers are supported?", a: "Gmail, Outlook, and any IMAP provider." },
+              { q: "How do you handle security?", a: "OAuth tokens are encrypted at rest; we follow best practices." },
+              { q: "Do you have webhooks?", a: "Yes, subscribe to new messages, send status, and more." },
+              { q: "What is pricing?", a: "Simple flat-rate pricing with a generous free tier." },
+              { q: "Is there a sandbox?", a: "Yes, use sandbox keys to develop safely." },
+            ].map((item, idx) => (
+              <details key={idx} className="group">
+                <summary className="cursor-pointer list-none px-6 py-4 text-left font-medium hover:bg-foreground/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                  <div className="flex items-center justify-between">
+                    <span>{item.q}</span>
+                    <span className="ml-4 h-5 w-5 rounded-full border border-foreground/20 text-foreground/70 inline-flex items-center justify-center">
+                      <svg className="h-3 w-3 transition-transform group-open:rotate-45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                    </span>
+                  </div>
+                </summary>
+                <div className="px-6 pb-4 text-sm text-foreground/80">{item.a}</div>
+              </details>
+            ))}
+          </div>
+        </Container>
+      </section>
+    </>
   );
 }
