@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Container from "@/components/Container";
 import { ThemeToggle } from "@/components/theme-toggle";
+import Image from "next/image";
 
 export default function Header() {
     const [isOpen, setIsOpen] = useState(false);
@@ -23,7 +24,8 @@ export default function Header() {
         <header className={`sticky top-0 z-50 border-b transition-colors ${isScrolled ? "bg-white/70 dark:bg-neutral-950/60 backdrop-blur supports-[backdrop-filter]:backdrop-blur" : "bg-transparent"}`}>
             <Container className="flex h-16 items-center justify-between">
                 <div className="flex items-center gap-8">
-                    <Link href="/" className="font-semibold text-lg tracking-tight">
+                    <Link href="/" className="font-semibold text-lg tracking-tight flex gap-1">
+                        <Image src="/logo.png" alt="MailLink" width={32} height={32} />
                         MailLink
                     </Link>
                     <nav className="hidden md:flex md:items-center md:gap-6 text-sm">
