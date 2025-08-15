@@ -107,6 +107,115 @@ export default function Home() {
         </Container>
       </section>
 
+      {/* Pricing */}
+      <section id="pricing" className="py-16 sm:py-24">
+        <Container>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Simple, usage-based pricing</h2>
+            <p className="mt-3 text-foreground/80">No per-email fees. Pay for aggregated API usage. Generous free tier for development.</p>
+          </div>
+
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                name: "Free",
+                price: "$0",
+                period: "/mo",
+                description: "Great for exploration and side projects.",
+                features: [
+                  "3,000 requests/mo",
+                  "Unlimited connected accounts",
+                  "Community support",
+                ],
+                cta: "Start Free",
+                href: "/sign-up",
+                highlighted: false,
+              },
+              {
+                name: "Basic",
+                price: "$10",
+                period: "/mo",
+                description: "For indie devs and small apps.",
+                features: [
+                  "50,000 requests/mo",
+                  "Unlimited connected accounts",
+                  "Webhooks + sandbox keys",
+                ],
+                cta: "Get Basic",
+                href: "/sign-up",
+                highlighted: false,
+              },
+              {
+                name: "Pro",
+                price: "$50",
+                period: "/mo",
+                description: "Scale confidently with priority support.",
+                features: [
+                  "200,000 requests/mo",
+                  "Unlimited connected accounts",
+                  "Priority support + rate limit bumps",
+                ],
+                cta: "Choose Pro",
+                href: "/sign-up",
+                highlighted: true,
+              },
+              {
+                name: "Enterprise",
+                price: "Custom",
+                period: "",
+                description: "For organizations with bespoke needs.",
+                features: [
+                  "500k+ requests/mo",
+                  "SLA + SSO + custom limits",
+                  "Dedicated onboarding",
+                ],
+                cta: "Contact Sales",
+                href: "/contact",
+                highlighted: false,
+              },
+            ].map((tier) => (
+              <div
+                key={tier.name}
+                className={`relative rounded-2xl border ${tier.highlighted ? "border-indigo-300/40 bg-[radial-gradient(60%_80%_at_50%_-20%,rgb(99_102_241/0.10),transparent_60%)]" : "border-foreground/10 bg-background"} p-6 flex h-full flex-col`}
+              >
+                {tier.highlighted && (
+                  <div className="absolute -top-3 right-4 rounded-full bg-indigo-600 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                    Popular
+                  </div>
+                )}
+                <h3 className="text-base font-semibold">{tier.name}</h3>
+                <div className="mt-2 flex items-baseline gap-1">
+                  <span className="text-3xl font-bold">{tier.price}</span>
+                  {tier.period && <span className="text-sm text-foreground/70">{tier.period}</span>}
+                </div>
+                <p className="mt-2 text-sm text-foreground/80">{tier.description}</p>
+                <ul className="mt-4 space-y-2 text-sm text-foreground/80">
+                  {tier.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2">
+                      <span className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-foreground/20 text-foreground/70 inline-flex items-center justify-center">
+                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                      </span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-auto pt-6">
+                  <Link href={tier.href} className={`inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500 ${tier.highlighted ? "bg-indigo-600 text-white hover:bg-indigo-500" : "border border-foreground/20 text-foreground/90 hover:border-foreground/40"}`}>
+                    {tier.cta}
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-foreground/70">
+            Pricing is optimized for development productivity. Requests are counted per API call (e.g., auth, list messages, send), not per email. All plans include unlimited connected accounts and support for Gmail, Outlook/Microsoft 365, and any IMAP/SMTP provider.
+          </p>
+        </Container>
+      </section>
+
       {/* Bottom CTA */}
       <section className="py-16 sm:py-24">
         <Container>

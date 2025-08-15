@@ -73,9 +73,9 @@ export default function RootLayout({
       }}
     >
       <html lang="en" className="h-full">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full bg-background text-foreground`}>
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}>
           <Header />
-          <main>{children}</main>
+          <main className="min-h-[calc(100vh-9.5rem)]">{children}</main>
           <Footer />
         </body>
       </html>

@@ -28,7 +28,7 @@ export default function Header() {
                     <nav className="hidden md:flex md:items-center md:gap-6 text-sm">
                         <Link href="/" className="text-foreground/80 hover:text-foreground transition-colors">Home</Link>
                         <Link href="/docs" className="text-foreground/80 hover:text-foreground transition-colors">Docs</Link>
-                        <Link href="/pricing" className="text-foreground/80 hover:text-foreground transition-colors">Pricing</Link>
+                        <Link href="/#pricing" className="text-foreground/80 hover:text-foreground transition-colors">Pricing</Link>
                     </nav>
                 </div>
 
@@ -78,7 +78,7 @@ export default function Header() {
                         <nav className="flex flex-col gap-2">
                             <Link href="/" className="py-2 text-foreground/90 hover:text-foreground" onClick={() => setIsOpen(false)}>Home</Link>
                             <Link href="/docs" className="py-2 text-foreground/90 hover:text-foreground" onClick={() => setIsOpen(false)}>Docs</Link>
-                            <Link href="/pricing" className="py-2 text-foreground/90 hover:text-foreground" onClick={() => setIsOpen(false)}>Pricing</Link>
+                            <Link href="/#pricing" className="py-2 text-foreground/90 hover:text-foreground" onClick={() => setIsOpen(false)}>Pricing</Link>
                             <div className="mt-2 flex items-center gap-3">
                                 <SignedOut>
                                     <SignInButton>
