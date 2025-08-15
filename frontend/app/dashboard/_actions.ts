@@ -45,15 +45,18 @@ export async function CreateProject(name: string) {
             const result = await tx.insert(connectedProviders).values([
                 {
                     environmentId,
-                    providerCode: "gmail"
+                    providerCode: "gmail",
+                    enabled: true
                 },
                 {
                     environmentId,
-                    providerCode: "outlook"
+                    providerCode: "outlook",
+                    enabled: true
                 },
                 {
                     environmentId,
-                    providerCode: "smtp-imap"
+                    providerCode: "smtp-imap",
+                    enabled: true
                 }
             ]).returning({ id: connectedProviders.id });
             if (result.length !== 3) {
@@ -154,29 +157,6 @@ export async function CreateProductionEnvironment(
     }
 }
 
-export async function UpdateProjectName(projectId: string, name: string) {
-    const { userId } = await auth();
-    if (!userId) {
-        return { error: "Unauthorized" } as const;
-    }
-    if (!name.trim()) {
-        return { error: "Invalid name" } as const;
-    }
-    try {
-        const updated = await db
-            .update(projects)
-            .set({ name: name.trim(), updatedAt: new Date() })
-            .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
-            .returning({ id: projects.id });
-        if (updated.length === 0) {
-            return { error: "Not found" } as const;
-        }
-        return { ok: true } as const;
-    } catch {
-        return { error: "Failed to update project" } as const;
-    }
-}
-
 export async function DeleteProject(projectId: string) {
     const { userId } = await auth();
     if (!userId) {
@@ -213,5 +193,42 @@ export async function DeleteProject(projectId: string) {
         return { ok: true } as const;
     } catch {
         return { error: "Failed to delete project" } as const;
+    }
+}
+
+export async function UpdateEnvironmentSettings(projectId: string, environmentId: string, projectName: string, outlookEnabled: boolean, gmailEnabled: boolean, imapEnabled: boolean) {
+    const { userId } = await auth();
+
+    if (!userId) {
+        return { error: "Unauthorized" } as const;
+    }
+
+    try {
+        await db.update(projects).set({
+            name: projectName
+        }).where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
+
+        const environment = await db.select().from(environments).innerJoin(projects, eq(environments.projectId, projects.id)).where(and(eq(environments.id, environmentId), eq(projects.userId, userId))).then((rows) => rows.at(0) ?? null);
+        if (!environment) {
+            return { error: "Environment not found" } as const;
+        }
+
+        await Promise.all([
+            db.update(connectedProviders).set({
+                enabled: outlookEnabled
+            }).where(and(eq(connectedProviders.environmentId, environmentId), eq(connectedProviders.providerCode, "outlook"))),
+
+            db.update(connectedProviders).set({
+                enabled: gmailEnabled
+            }).where(and(eq(connectedProviders.environmentId, environmentId), eq(connectedProviders.providerCode, "gmail"))),
+
+            db.update(connectedProviders).set({
+                enabled: imapEnabled
+            }).where(and(eq(connectedProviders.environmentId, environmentId), eq(connectedProviders.providerCode, "smtp-imap"))),
+        ]);
+
+        return { ok: true } as const;
+    } catch {
+        return { error: "Failed to update environment settings" } as const;
     }
 }

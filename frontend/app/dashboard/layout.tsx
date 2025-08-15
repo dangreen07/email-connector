@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { environments, FullProject, projects } from "@/utils/db/schema";
 import { eq } from "drizzle-orm";
 import DashboardSelector from "./DashboardSelector";
+import { DashboardStoreProvider } from "@/lib/dashboard/dashboard-store-provider";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { userId } = await auth();
@@ -35,8 +36,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
         return children;
     }
 
-    return <>
-        <DashboardSelector projects={projectsFull} />
-        {children}
-    </>
+    return (
+        <DashboardStoreProvider>
+            <DashboardSelector projects={projectsFull} />
+            <div className="overflow-y-scroll h-[calc(100vh-15rem)] overscroll-contain">
+                {children}
+            </div>
+        </DashboardStoreProvider>
+    )
 }

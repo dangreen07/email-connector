@@ -75,7 +75,7 @@ export default function RootLayout({
       }}
     >
       <html lang="en" className="h-full" suppressHydrationWarning>
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}>
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased h-full bg-background text-foreground overflow-auto`}>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             <Header />
             <main className="min-h-[calc(100vh-9.5rem)]">{children}</main>

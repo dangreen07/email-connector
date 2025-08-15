@@ -23,7 +23,7 @@ export default async function EnvironmentPage({ params }: { params: Promise<{ pr
     }
 
     const providers = await db
-        .select({ providerCode: connectedProviders.providerCode })
+        .select()
         .from(connectedProviders)
         .where(eq(connectedProviders.environmentId, environmentId));
 
@@ -33,7 +33,9 @@ export default async function EnvironmentPage({ params }: { params: Promise<{ pr
             environmentName={project.environments.name}
             publishableKey={project.environments.publishableKey}
             secretKey={project.environments.secretKey}
-            enabledProviders={providers.map((p) => p.providerCode)}
+            enabledProviders={providers}
+            projectId={projectId}
+            environmentId={environmentId}
         />
     );
 }

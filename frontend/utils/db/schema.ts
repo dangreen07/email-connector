@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const projects = pgTable("projects", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -23,6 +23,7 @@ export const providers = pgTable("providers", {
 
 export const connectedProviders = pgTable("connected_providers", {
     id: uuid("id").primaryKey().defaultRandom(),
+    enabled: boolean("enabled").notNull().default(false),
     environmentId: uuid("environment_id").notNull().references(() => environments.id),
     providerCode: text("provider_code").notNull().references(() => providers.code),
     // Encrypted with AES-256-GCM of JSONified data.
@@ -45,6 +46,7 @@ export const users = pgTable("users", {
 
 export type Project = typeof projects.$inferSelect;
 export type Environment = typeof environments.$inferSelect;
+export type ConnectedProvider = typeof connectedProviders.$inferSelect;
 
 export interface FullProject extends Project {
     environments: Environment[];
