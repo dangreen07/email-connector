@@ -1,0 +1,26 @@
+{
+  "name": "clerk-fastify-template",
+  "version": "1.0.0",
+  "description": "A template for a Fastify backend using Clerk and PostgreSQL",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "dev": "nodemon src/index.ts"
+  },
+  "author": "dangreen07",
+  "license": "ISC",
+  "devDependencies": {
+    "dotenv": "^16.4.7",
+    "drizzle-kit": "^0.30.5",
+    "nodemon": "^3.1.9",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@clerk/fastify": "^2.1.23",
+    "@neondatabase/serverless": "^0.10.4",
+    "drizzle-orm": "^0.40.0",
+    "fastify": "^5.2.1",
+    "ts-node": "^10.9.2"
+  }
+}
