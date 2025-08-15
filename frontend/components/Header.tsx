@@ -23,7 +23,7 @@ export default function Header() {
             <Container className="flex h-16 items-center justify-between">
                 <div className="flex items-center gap-8">
                     <Link href="/" className="font-semibold text-lg tracking-tight">
-                        EmailLinkup
+                        MailLink
                     </Link>
                     <nav className="hidden md:flex md:items-center md:gap-6 text-sm">
                         <Link href="/" className="text-foreground/80 hover:text-foreground transition-colors">Home</Link>

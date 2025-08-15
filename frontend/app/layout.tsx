@@ -16,20 +16,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EmailLinkup — One API for Every Inbox",
+  title: "MailLink - One API for Every Inbox",
   description: "Connect Gmail, Outlook, and IMAP in minutes. Developer-first email connectivity without OAuth headaches.",
   openGraph: {
-    title: "EmailLinkup — One API for Every Inbox",
+    title: "MailLink - One API for Every Inbox",
     description:
       "Connect Gmail, Outlook, and IMAP in minutes. Developer-first email connectivity without OAuth headaches.",
-    url: "https://emaillinkup.example.com",
-    siteName: "EmailLinkup",
+    url: "https://maillink.example.com",
+    siteName: "MailLink",
     images: [
       {
         url: "/vercel.svg",
         width: 1200,
         height: 630,
-        alt: "EmailLinkup preview",
+        alt: "MailLink preview",
       },
     ],
     locale: "en_US",

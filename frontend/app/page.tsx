@@ -13,7 +13,7 @@ export default function Home() {
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-indigo-500">Developer-first email connectivity</p>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">One API for Every Inbox</h1>
             <p className="mt-4 text-lg text-foreground/80">
-              Connect Gmail, Outlook, and IMAP in minutes — no OAuth headaches or vendor lock-in.
+              Connect Gmail, Outlook, and IMAP in minutes - no OAuth headaches or vendor lock-in.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
@@ -39,23 +39,10 @@ export default function Home() {
 
             {/* Code snippet */}
             <div className="mt-10 rounded-xl border border-foreground/10 bg-foreground/5 p-4 text-left">
-              <pre className="text-sm leading-6 text-foreground/90 overflow-x-auto"><code>{`import { ConnectInbox } from "emaillinkup-react";
+              <pre className="text-sm leading-6 text-foreground/90 overflow-x-auto"><code>{`import { ConnectInbox } from "maillink-react";
 
-<ConnectInbox onConnected={(token) => {
-  // Use token with /messages and /send
-}} />`}</code></pre>
+<ConnectInbox />`}</code></pre>
             </div>
-          </div>
-        </Container>
-      </section>
-
-      {/* Social proof */}
-      <section aria-label="Trusted by" className="py-10">
-        <Container>
-          <div className="grid grid-cols-2 gap-6 opacity-70 sm:grid-cols-4 md:grid-cols-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-8 rounded bg-foreground/10" />
-            ))}
           </div>
         </Container>
       </section>
