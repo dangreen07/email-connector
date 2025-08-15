@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Container from "@/components/Container";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Header() {
     const [isOpen, setIsOpen] = useState(false);
@@ -32,7 +33,8 @@ export default function Header() {
                     </nav>
                 </div>
 
-                <div className="hidden md:flex items-center gap-3">
+                <div className="hidden md:flex items-center gap-4">
+                    <ThemeToggle />
                     <SignedOut>
                         <SignInButton>
                             <button className="px-4 py-2 text-sm font-medium rounded-md border border-foreground/20 hover:border-foreground/40 text-foreground/90 bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500">
@@ -46,6 +48,7 @@ export default function Header() {
                         </SignUpButton>
                     </SignedOut>
                     <SignedIn>
+                        <Link href="/dashboard" className="text-foreground/80 hover:text-foreground transition-colors">Dashboard</Link>
                         <UserButton afterSignOutUrl="/" />
                     </SignedIn>
                 </div>
@@ -79,6 +82,9 @@ export default function Header() {
                             <Link href="/" className="py-2 text-foreground/90 hover:text-foreground" onClick={() => setIsOpen(false)}>Home</Link>
                             <Link href="/docs" className="py-2 text-foreground/90 hover:text-foreground" onClick={() => setIsOpen(false)}>Docs</Link>
                             <Link href="/#pricing" className="py-2 text-foreground/90 hover:text-foreground" onClick={() => setIsOpen(false)}>Pricing</Link>
+                            <div className="py-2">
+                                <ThemeToggle />
+                            </div>
                             <div className="mt-2 flex items-center gap-3">
                                 <SignedOut>
                                     <SignInButton>

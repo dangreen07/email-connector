@@ -1,11 +1,11 @@
 import db from "@/utils/db";
-import { environments, FullProject, projects } from "@/utils/db/schema";
 import { auth } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import NoProjectsState from "./NoProjectsState";
+import { environments, FullProject, projects } from "@/utils/db/schema";
+import { eq } from "drizzle-orm";
+import DashboardSelector from "./DashboardSelector";
 
-export default async function DashboardPage() {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { userId } = await auth();
     if (!userId) return redirect("/");
 
@@ -32,8 +32,11 @@ export default async function DashboardPage() {
     }, [] as FullProject[]);
 
     if (projectsFull.length === 0) {
-        return <NoProjectsState />;
+        return children;
     }
 
-    return redirect(`/dashboard/${projectsFull[0].id}/${projectsFull[0].environments[0].id}`);
+    return <>
+        <DashboardSelector projects={projectsFull} />
+        {children}
+    </>
 }

@@ -4,6 +4,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,13 +17,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://maillink.co"),
   title: "MailLink - One API for Every Inbox",
   description: "Connect Gmail, Outlook, and IMAP in minutes. Developer-first email connectivity without OAuth headaches.",
   openGraph: {
     title: "MailLink - One API for Every Inbox",
     description:
       "Connect Gmail, Outlook, and IMAP in minutes. Developer-first email connectivity without OAuth headaches.",
-    url: "https://maillink.example.com",
+    url: "https://maillink.co",
     siteName: "MailLink",
     images: [
       {
@@ -72,11 +74,13 @@ export default function RootLayout({
         },
       }}
     >
-      <html lang="en" className="h-full">
+      <html lang="en" className="h-full" suppressHydrationWarning>
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}>
-          <Header />
-          <main className="min-h-[calc(100vh-9.5rem)]">{children}</main>
-          <Footer />
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            <Header />
+            <main className="min-h-[calc(100vh-9.5rem)]">{children}</main>
+            <Footer />
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>
