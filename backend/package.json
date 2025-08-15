@@ -17,6 +17,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@azure/msal-node": "^3.7.1",
     "@clerk/fastify": "^2.1.23",
     "@neondatabase/serverless": "^0.10.4",
     "drizzle-orm": "^0.40.0",

@@ -11,8 +11,8 @@ export const environments = pgTable("environments", {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     projectId: uuid("project_id").notNull().references(() => projects.id),
-    publishableKey: text("publishable_key").notNull(),
-    secretKey: text("secret_key").notNull()
+    publishableKey: text("publishable_key").notNull().unique(),
+    secretKey: text("secret_key").notNull().unique()
 });
 
 // List of providers that can be connected to an environment
