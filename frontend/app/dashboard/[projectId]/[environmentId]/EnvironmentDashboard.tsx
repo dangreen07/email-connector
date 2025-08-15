@@ -59,12 +59,7 @@ export default function EnvironmentDashboard(props: {
     };
 
     return (
-        <Container className="py-8">
-            <div className="flex items-baseline justify-between">
-                <h1 className="text-xl font-semibold tracking-tight">{projectName}</h1>
-                <span className="text-sm text-foreground/70">{environmentName}</span>
-            </div>
-
+        <Container>
             <Tabs value={projectTab} onValueChange={(v) => setProjectTab(v as typeof projectTab)} className="mt-6">
                 <TabsList>
                     <TabsTrigger value="connections">Connections</TabsTrigger>
@@ -176,7 +171,7 @@ export default function EnvironmentDashboard(props: {
                             </CardContent>
                         </Card>
 
-                        <Card>
+                        <Card className="flex flex-col justify-between">
                             <CardHeader>
                                 <CardTitle>Danger zone</CardTitle>
                                 <CardDescription>Delete this project and all its environments.</CardDescription>
