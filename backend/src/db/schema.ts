@@ -1,4 +1,4 @@
-import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const projects = pgTable("projects", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -60,7 +60,9 @@ export const oauthConnections = pgTable("oauth_connections", {
   identifier: text("identifier").notNull(),
   accessToken: text("access_token").notNull(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
-})
+}, (table) => [
+  uniqueIndex("unique_identifier").on(table.environmentId, table.providerCode, table.identifier)
+])
 
 export type Project = typeof projects.$inferSelect;
 export type Environment = typeof environments.$inferSelect;

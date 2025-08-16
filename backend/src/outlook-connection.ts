@@ -119,7 +119,7 @@ export async function getOutlookAccessToken(identifier: string): Promise<string 
             scopes,
             account: primaryAccount,
         });
-        return result?.accessToken ?? null;
+        return result.accessToken;
     }
     catch {
         return null;
