@@ -59,7 +59,6 @@ export const oauthConnections = pgTable("oauth_connections", {
   providerCode: text("provider_code").notNull().references(() => providers.code),
   identifier: text("identifier").notNull(),
   accessToken: text("access_token").notNull(),
-  refreshToken: text("refresh_token").notNull(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 })
 
