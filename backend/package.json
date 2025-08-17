@@ -17,12 +17,16 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@azure/identity": "^4.11.1",
     "@azure/msal-node": "^3.7.1",
     "@clerk/fastify": "^2.1.23",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "@neondatabase/serverless": "^0.10.4",
     "drizzle-orm": "^0.40.0",
     "fastify": "^5.2.1",
     "ioredis": "^5.7.0",
+    "isomorphic-fetch": "^3.0.0",
+    "redis": "^5.8.1",
     "ts-node": "^10.9.2"
   }
 }

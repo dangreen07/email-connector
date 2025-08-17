@@ -44,15 +44,6 @@ export const users = pgTable("users", {
   stripeCustomerId: text("stripe_customer_id").unique()
 });
 
-export const stateTokens = pgTable("state_tokens", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  environmentId: uuid("environment_id").notNull().references(() => environments.id),
-  providerCode: text("provider_code").notNull().references(() => providers.code),
-  identifier: text("identifier").notNull(),
-  redirectAfterAuth: text("redirect_after_auth").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow()
-});
-
 export const oauthConnections = pgTable("oauth_connections", {
   id: uuid("id").primaryKey().defaultRandom(),
   environmentId: uuid("environment_id").notNull().references(() => environments.id),

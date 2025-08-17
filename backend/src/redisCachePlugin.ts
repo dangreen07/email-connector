@@ -1,12 +1,7 @@
-import Redis from "ioredis";
-import { config } from "dotenv";
+import redis from "./redis";
 
-config({ path: ".env" });
-
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
-
-export function createRedisCachePlugin(identifier: string) {
-    const cacheKey = `msal-cache:${identifier}`;
+export function createRedisCachePlugin(identifier: string, environmentId: string) {
+    const cacheKey = `msal-cache:${environmentId}:${identifier}`;
 
     return {
         beforeCacheAccess: async (cacheContext: any) => {
@@ -24,8 +19,8 @@ export function createRedisCachePlugin(identifier: string) {
     };
 }
 
-export async function hydrateTokenCache(identifier: string, tokenCache: any) {
-    const cacheKey = `msal-cache:${identifier}`;
+export async function hydrateTokenCache(identifier: string, environmentId: string, tokenCache: any) {
+    const cacheKey = `msal-cache:${environmentId}:${identifier}`;
     const data = await redis.get(cacheKey);
     if (data) {
         tokenCache.deserialize(data);

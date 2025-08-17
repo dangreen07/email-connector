@@ -4,4 +4,11 @@ const nextConfig: NextConfig = {
   /* config options here */
 };
 
-export default nextConfig;
+import withMDX from "@next/mdx";
+
+export default withMDX({
+  extension: /\.mdx?$/,
+})({
+  ...nextConfig,
+  pageExtensions: ["ts", "tsx", "md", "mdx"]
+});
