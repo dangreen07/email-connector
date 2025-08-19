@@ -49,7 +49,9 @@ export const oauthConnections = pgTable("oauth_connections", {
   environmentId: uuid("environment_id").notNull().references(() => environments.id),
   providerCode: text("provider_code").notNull().references(() => providers.code),
   identifier: text("identifier").notNull(),
-  accessToken: text("access_token").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  expiresAt: timestamp("expires_at"),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 }, (table) => [
   uniqueIndex("unique_identifier").on(table.environmentId, table.providerCode, table.identifier)

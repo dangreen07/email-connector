@@ -6,14 +6,10 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { createRedisCachePlugin, hydrateTokenCache } from "../redisCachePlugin";
 import redis from "../redis";
 import { getGraphClient } from "./GraphAPI";
+import { EmailMessage, StoredStateToken } from "../types";
+import { encrypt } from "../encryption";
 
 const scopes = ["Mail.Read", "Mail.Send", "offline_access", "openid", "profile", "email", "User.Read"];
-
-interface StoredStateToken {
-    environmentId: string;
-    identifier: string;
-    redirectAfterAuth: string;
-}
 
 function createMsalClient(identifier: string, environmentId: string) {
     const msalConfig: Configuration = {
@@ -100,22 +96,17 @@ export async function handleOutlookCallback(request: FastifyRequest, response: F
             redirectUri: `${process.env.API_URL}/v1/callback/outlook`,
         });
 
-        try {
-            // Store the tokens in the database
-            await db.insert(oauthConnections).values({
-                environmentId: environment.id,
-                providerCode: "outlook",
-                identifier: stateToken.identifier,
-                accessToken: tokenResponse.accessToken,
-            });
-        }
-        catch {
-            // Do nothing, as auth is already completed, just update the token
-            await db.update(oauthConnections).set({
+        await db.insert(oauthConnections).values({
+            environmentId: environment.id,
+            providerCode: "outlook",
+            identifier: stateToken.identifier,
+        }).onConflictDoUpdate({
+            target: [oauthConnections.environmentId, oauthConnections.providerCode, oauthConnections.identifier],
+            set: {
                 accessToken: tokenResponse.accessToken,
                 updatedAt: new Date(),
-            }).where(and(eq(oauthConnections.environmentId, environment.id), eq(oauthConnections.providerCode, "outlook"), eq(oauthConnections.identifier, stateToken.identifier)));
-        }
+            }
+        });
 
         await redis.del(`outlook-state-token:${state}`);
 
@@ -128,7 +119,7 @@ export async function handleOutlookCallback(request: FastifyRequest, response: F
 
 // Re-acquire an Outlook access token using the MSAL cache persisted in Redis.
 // Returns null if no cached account/token is available for the given identifier.
-export async function getOutlookAccessToken(identifier: string, environmentId: string): Promise<string | null> {
+async function getOutlookAccessToken(identifier: string, environmentId: string): Promise<string | null> {
     const pca = createMsalClient(identifier, environmentId);
 
     const tokenCache = pca.getTokenCache();
@@ -154,7 +145,7 @@ export async function getOutlookAccessToken(identifier: string, environmentId: s
     }
 }
 
-export async function getOutlookMessages(identifier: string, environmentId: string, top: number = 10) {
+export async function getOutlookMessages(identifier: string, environmentId: string, limit: number = 10) {
     const accessToken = await getOutlookAccessToken(identifier, environmentId);
     if (!accessToken) {
         throw new Error("No Outlook access token available. Connect Outlook first.");
@@ -165,14 +156,45 @@ export async function getOutlookMessages(identifier: string, environmentId: stri
     try {
         const response = await graphClient
             .api("/me/messages")
-            .top(Math.min(Math.max(top, 1), 50))
+            .top(Math.min(Math.max(limit, 1), 50))
             .orderby("receivedDateTime desc")
+            .select("id,internetMessageId,subject,from,sender,toRecipients,ccRecipients,bccRecipients,replyTo,sentDateTime,body,conversationId")
             .get();
 
-        return response?.value ?? [];
+        return (response?.value ?? []).map((outlookMsg: any) => outlookToGeneric(outlookMsg, identifier, environmentId));
     }
     catch (error) {
         // Surface Graph errors to the caller for better diagnostics
         throw error;
     }
+}
+
+function outlookToGeneric(outlookMsg: any, identifier: string, environmentId: string): EmailMessage {
+    const payload = {
+        providerId: outlookMsg.id,
+        provider: "outlook",
+        identifier,
+        environmentId,
+    };
+    const id = encrypt(JSON.stringify(payload), process.env.ID_CREATION_SECRET!);
+
+    return {
+        id,
+        messageId: outlookMsg.internetMessageId,
+        subject: outlookMsg.subject,
+        from: outlookMsg.from?.emailAddress,
+        sender: outlookMsg.sender?.emailAddress,
+        to: outlookMsg.toRecipients?.map((r: any) => r.emailAddress) || [],
+        cc: outlookMsg.ccRecipients?.map((r: any) => r.emailAddress) || [],
+        replyTo: outlookMsg.replyTo?.map((r: any) => r.emailAddress) || [],
+        date: outlookMsg.sentDateTime,
+        body: [{
+            contentType: outlookMsg.body?.contentType?.toLowerCase() === "html" ? "html" : "text",
+            content: outlookMsg.body?.content || "",
+        }],
+        thread: {
+            conversationId: outlookMsg.conversationId,
+            // conversationIndex is Outlook-specific, not RFC standard
+        },
+    };
 }

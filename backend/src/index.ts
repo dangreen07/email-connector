@@ -3,6 +3,7 @@ import { connectedProviders, environments, oauthConnections } from './db/schema'
 import db from './db';
 import { and, eq } from 'drizzle-orm';
 import { getOutlookMessages, getOutlookOAuthLink, handleOutlookCallback } from './azure/outlook-connection';
+import { getGmailMessages, getGmailOauthLink, handleGmailCallback } from './google/gmail-connection';
 
 const fastify = Fastify({
   logger: true
@@ -37,16 +38,21 @@ fastify.post('/v1/connections', async function handler(request, response) {
   }
 
   if (environment.name === "development") {
+    let authUrl: string | null = null;
     // Use our own credentials
     switch (providerCode) {
       case "outlook":
-        const authUrl = await getOutlookOAuthLink(environment, identifier, redirectAfterAuth);
+        authUrl = await getOutlookOAuthLink(environment, identifier, redirectAfterAuth);
         if (!authUrl) {
           return response.status(500).send({ error: 'Failed to get Outlook OAuth link' });
         }
         return response.status(200).send({ authUrl });
       case "gmail":
-        break;
+        authUrl = await getGmailOauthLink(environment, identifier, redirectAfterAuth);
+        if (!authUrl) {
+          return response.status(500).send({ error: 'Failed to get Gmail OAuth link' });
+        }
+        return response.status(200).send({ authUrl });
       case "smtp-imap":
         break;
       default:
@@ -57,8 +63,6 @@ fastify.post('/v1/connections', async function handler(request, response) {
     // TODO: Handle production environment
   }
 });
-
-fastify.get('/v1/callback/outlook', handleOutlookCallback);
 
 fastify.post('/v1/messages', async function handler(request, response) {
   const {
@@ -116,7 +120,15 @@ fastify.post('/v1/messages', async function handler(request, response) {
       }
 
     case "gmail":
-      break;
+      try {
+        const messages = await getGmailMessages(identifier, oauthConnection.environmentId, limit);
+        return response.status(200).send({ messages });
+      } catch (err: any) {
+        const errorMessage = err?.message || "Failed to fetch Gmail messages";
+        const statusCode = err?.statusCode || 500;
+        request.log.error(err, errorMessage);
+        return response.status(statusCode).send({ error: errorMessage, code: err?.code });
+      }
     case "smtp-imap":
       break;
     default:
@@ -125,6 +137,11 @@ fastify.post('/v1/messages', async function handler(request, response) {
 
   return response.status(200).send("OK");
 });
+
+
+// Callback endpoints
+fastify.get('/v1/callback/outlook', handleOutlookCallback);
+fastify.get('/v1/callback/gmail', handleGmailCallback);
 
 // Run the server!
 async function start() {
