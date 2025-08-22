@@ -154,6 +154,46 @@ export async function getGmailMessages(identifier: string, environmentId: string
 
     return messages.map((msg) => gmailToGeneric(msg, identifier, environmentId));
 }
+export async function getGmailMessageById(identifier: string, environmentId: string, providerId: string) {
+    const oauthConnection = await db
+        .select()
+        .from(oauthConnections)
+        .where(and(
+            eq(oauthConnections.environmentId, environmentId),
+            eq(oauthConnections.providerCode, "gmail"),
+            eq(oauthConnections.identifier, identifier)
+        ))
+        .then((rows) => rows.at(0) ?? null);
+
+    if (!oauthConnection) {
+        const err: any = new Error("No Gmail OAuth connection found. Connect Gmail first.");
+        err.statusCode = 401;
+        throw err;
+    }
+
+    const client = new google.auth.OAuth2(
+        {
+            client_id: process.env.GOOGLE_CLIENT_ID!,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+            redirect_uris: [`${process.env.API_URL}/v1/callback/gmail`],
+        }
+    );
+
+    client.setCredentials({
+        access_token: oauthConnection.accessToken ?? undefined,
+        refresh_token: oauthConnection.refreshToken ?? undefined,
+        expiry_date: oauthConnection.expiresAt?.getTime()
+    });
+
+    const gmail = google.gmail({ version: "v1", auth: client });
+
+    const msg = await gmail.users.messages.get({
+        userId: "me",
+        id: providerId,
+    }).then((res) => res.data);
+
+    return gmailToGeneric(msg, identifier, environmentId);
+}
 
 function getHeaderValue(headers: gmail_v1.Schema$MessagePartHeader[], name: string) {
     return headers.find((header) => header.name === name)?.value;

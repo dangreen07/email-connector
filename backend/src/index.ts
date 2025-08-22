@@ -2,9 +2,10 @@ import Fastify from 'fastify';
 import { connectedProviders, environments, oauthConnections } from './db/schema';
 import db from './db';
 import { and, eq } from 'drizzle-orm';
-import { getOutlookMessages, getOutlookOAuthLink, handleOutlookCallback } from './azure/outlook-connection';
-import { getGmailMessages, getGmailOauthLink, handleGmailCallback } from './google/gmail-connection';
+import { getOutlookMessages, getOutlookOAuthLink, handleOutlookCallback, getOutlookMessageById } from './azure/outlook-connection';
+import { getGmailMessages, getGmailOauthLink, handleGmailCallback, getGmailMessageById } from './google/gmail-connection';
 import redis from './redis';
+import { decrypt } from './encryption';
 
 const fastify = Fastify({
   logger: true
@@ -141,9 +142,63 @@ fastify.get('/v1/messages', async function handler(request, response) {
   return response.status(200).send("OK");
 });
 
-fastify.get('/v1/messages/:id', async function handler(request, response) {
-  const { id } = request.params as { id: string };
-})
+fastify.get('/v1/messages/by-id', async function handler(request, response) {
+  const headers = request.headers;
+  const authorization = headers.authorization;
+  if (!authorization) {
+    return response.status(401).send({ error: 'Missing authorization header' });
+  }
+  const secretKey = authorization.split(" ")[1];
+
+  const { id } = request.query as { id: string };
+
+  if (!secretKey || !id) {
+    return response.status(401).send({ error: 'Missing required parameters' });
+  }
+
+  // Decrypt the message id to extract provider payload
+  let payload: { providerId: string; provider: string; identifier: string; environmentId: string };
+  try {
+    const decoded = decrypt(id, process.env.ID_CREATION_SECRET!);
+    payload = JSON.parse(decoded);
+  } catch (err) {
+    request.log.error(err, 'Invalid message id');
+    return response.status(400).send({ error: 'Invalid message id' });
+  }
+
+  // Validate the secret key belongs to the same environment as in the id payload
+  const environment = await db
+    .select()
+    .from(environments)
+    .where(eq(environments.secretKey, secretKey))
+    .then((rows) => rows.at(0) ?? null);
+
+  if (!environment || environment.id !== payload.environmentId) {
+    return response.status(401).send({ error: 'Could not find a valid connection' });
+  }
+
+  const { providerId, provider, identifier, environmentId } = payload;
+
+  try {
+    switch (provider) {
+      case 'outlook': {
+        const message = await getOutlookMessageById(identifier, environmentId, providerId);
+        return response.status(200).send({ message });
+      }
+      case 'gmail': {
+        const message = await getGmailMessageById(identifier, environmentId, providerId);
+        return response.status(200).send({ message });
+      }
+      default:
+        return response.status(401).send({ error: 'Invalid provider code' });
+    }
+  } catch (err: any) {
+    const errorMessage = err?.message || "Failed to fetch message";
+    const statusCode = err?.statusCode || 500;
+    request.log.error(err, errorMessage);
+    return response.status(statusCode).send({ error: errorMessage, code: err?.code });
+  }
+});
 
 // Callback endpoints
 fastify.get('/v1/callback/outlook', handleOutlookCallback);

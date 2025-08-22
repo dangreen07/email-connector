@@ -168,6 +168,29 @@ export async function getOutlookMessages(identifier: string, environmentId: stri
         throw error;
     }
 }
+export async function getOutlookMessageById(identifier: string, environmentId: string, providerId: string) {
+    const accessToken = await getOutlookAccessToken(identifier, environmentId);
+    if (!accessToken) {
+        const err: any = new Error("No Outlook access token available. Connect Outlook first.");
+        err.statusCode = 401;
+        throw err;
+    }
+
+    const graphClient = getGraphClient(accessToken);
+
+    try {
+        const outlookMsg = await graphClient
+            .api(`/me/messages/${providerId}`)
+            .select("id,internetMessageId,subject,from,sender,toRecipients,ccRecipients,bccRecipients,replyTo,sentDateTime,body,conversationId")
+            .get();
+
+        return outlookToGeneric(outlookMsg, identifier, environmentId);
+    }
+    catch (error) {
+        // Surface Graph errors to the caller for better diagnostics
+        throw error;
+    }
+}
 
 function outlookToGeneric(outlookMsg: any, identifier: string, environmentId: string): EmailMessage {
     const payload = {
