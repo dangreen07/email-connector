@@ -5,6 +5,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,6 +47,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider
+      waitlistUrl="/waitlist"
       appearance={{
         variables: {
           colorPrimary: "#4f46e5",
@@ -81,6 +83,7 @@ export default function RootLayout({
             <main className="min-h-[calc(100vh-9.5rem)]">{children}</main>
             <Footer />
           </ThemeProvider>
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>

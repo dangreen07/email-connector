@@ -178,6 +178,14 @@ function outlookToGeneric(outlookMsg: any, identifier: string, environmentId: st
     };
     const id = encrypt(JSON.stringify(payload), process.env.ID_CREATION_SECRET!);
 
+    const conversationPayload = {
+        providerId: outlookMsg.conversationId,
+        provider: "outlook",
+        identifier,
+        environmentId,
+    };
+    const conversationId = encrypt(JSON.stringify(conversationPayload), process.env.ID_CREATION_SECRET!);
+
     return {
         id,
         messageId: outlookMsg.internetMessageId,
@@ -193,7 +201,7 @@ function outlookToGeneric(outlookMsg: any, identifier: string, environmentId: st
             content: outlookMsg.body?.content || "",
         }],
         thread: {
-            conversationId: outlookMsg.conversationId,
+            conversationId,
             // conversationIndex is Outlook-specific, not RFC standard
         },
     };

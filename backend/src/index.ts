@@ -4,6 +4,7 @@ import db from './db';
 import { and, eq } from 'drizzle-orm';
 import { getOutlookMessages, getOutlookOAuthLink, handleOutlookCallback } from './azure/outlook-connection';
 import { getGmailMessages, getGmailOauthLink, handleGmailCallback } from './google/gmail-connection';
+import redis from './redis';
 
 const fastify = Fastify({
   logger: true
@@ -11,22 +12,26 @@ const fastify = Fastify({
 
 // Returns a link to the provider's OAuth page with a callback URL to our server
 // The domain can be configured in future for production environments
-fastify.post('/v1/connections', async function handler(request, response) {
-  const body = request.body as {
-    credentials: {
-      publishableKey: string,
-    },
+fastify.get('/v1/connection', async function handler(request, response) {
+  const headers = request.headers;
+  const authorization = headers.authorization;
+  if (!authorization) {
+    return response.status(401).send({ error: 'Missing authorization header' });
+  }
+  const publishableKey = authorization.split(" ")[1];
+  const query = request.query as {
     providerCode: string,
     identifier: string,
     redirectAfterAuth: string
   };
-  const { providerCode, credentials, identifier, redirectAfterAuth } = body; // We can detect environment from the key
+  let { providerCode, identifier, redirectAfterAuth } = query; // We can detect environment from the key
+  redirectAfterAuth = decodeURIComponent(redirectAfterAuth);
 
-  if (!credentials.publishableKey) {
+  if (!publishableKey) {
     return response.status(401).send({ error: 'Missing publishable key' });
   }
 
-  const environment = await db.select().from(environments).where(eq(environments.publishableKey, credentials.publishableKey)).then((rows) => rows.at(0) ?? null);
+  const environment = await db.select().from(environments).where(eq(environments.publishableKey, publishableKey)).then((rows) => rows.at(0) ?? null);
   if (!environment) {
     return response.status(401).send({ error: 'Invalid publishable key' });
   }
@@ -64,22 +69,21 @@ fastify.post('/v1/connections', async function handler(request, response) {
   }
 });
 
-fastify.post('/v1/messages', async function handler(request, response) {
+fastify.get('/v1/messages', async function handler(request, response) {
+  const headers = request.headers;
+  const authorization = headers.authorization;
+  if (!authorization) {
+    return response.status(401).send({ error: 'Missing authorization header' });
+  }
+  const secretKey = authorization.split(" ")[1];
+
   const {
-    credentials: {
-      publishableKey,
-      secretKey,
-    },
     identifier,
     providerCode,
     limit = 10,
     offset = 0,
     search = ""
-  } = request.body as {
-    credentials: {
-      publishableKey: string,
-      secretKey: string,
-    },
+  } = request.query as {
     identifier: string,
     providerCode: string,
     limit?: number,
@@ -87,7 +91,7 @@ fastify.post('/v1/messages', async function handler(request, response) {
     search?: string
   };
 
-  if (!publishableKey || !identifier || !secretKey || !providerCode) {
+  if (!secretKey || !identifier || !providerCode) {
     return response.status(401).send({ error: 'Missing required parameters' });
   }
 
@@ -99,7 +103,6 @@ fastify.post('/v1/messages', async function handler(request, response) {
       and(
         eq(oauthConnections.providerCode, providerCode),
         eq(oauthConnections.identifier, identifier),
-        eq(environments.publishableKey, publishableKey),
         eq(environments.secretKey, secretKey),
       )).limit(1).then((rows) => rows.at(0)?.oauth_connections ?? null);
   if (!oauthConnection) {
@@ -138,6 +141,9 @@ fastify.post('/v1/messages', async function handler(request, response) {
   return response.status(200).send("OK");
 });
 
+fastify.get('/v1/messages/:id', async function handler(request, response) {
+  const { id } = request.params as { id: string };
+})
 
 // Callback endpoints
 fastify.get('/v1/callback/outlook', handleOutlookCallback);
@@ -145,6 +151,8 @@ fastify.get('/v1/callback/gmail', handleGmailCallback);
 
 // Run the server!
 async function start() {
+  await redis.connect();
+
   try {
     await fastify.listen({ port: 8080 });
   } catch (err) {

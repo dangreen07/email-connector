@@ -233,8 +233,16 @@ function gmailToGeneric(gmailMsg: gmail_v1.Schema$Message, identifier: string, e
     const body = gmailMsg.payload?.parts?.map(getBody).flat().filter((part) => part !== null) ?? [];
 
     const attachments = gmailMsg.payload?.parts?.filter((part) => part.filename !== undefined && part.body?.attachmentId !== undefined).map((part) => {
+        const attachmentPayload = {
+            providerId: part.body?.attachmentId ?? "",
+            provider: "gmail",
+            identifier,
+            environmentId,
+        };
+        const attachmentId = encrypt(JSON.stringify(attachmentPayload), process.env.ID_CREATION_SECRET!);
+
         return {
-            id: part.body?.attachmentId ?? "",
+            id: attachmentId,
             name: part.filename ?? "",
             contentType: part.mimeType ?? "",
             size: part.body?.size ?? 0,
@@ -242,8 +250,16 @@ function gmailToGeneric(gmailMsg: gmail_v1.Schema$Message, identifier: string, e
         }
     }) ?? [];
 
+    const conversationPayload = {
+        providerId: gmailMsg.threadId,
+        provider: "gmail",
+        identifier,
+        environmentId,
+    };
+    const conversationId = encrypt(JSON.stringify(conversationPayload), process.env.ID_CREATION_SECRET!);
+
     const thread = {
-        conversationId: gmailMsg.threadId ?? undefined,
+        conversationId,
         inReplyTo: getHeaderValue(headers, "In-Reply-To") ?? undefined,
         references: references ?? undefined
     }
