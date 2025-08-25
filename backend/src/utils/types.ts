@@ -3,20 +3,22 @@ export interface EmailAddress {
   address: string;
 }
 
+export interface Body {
+  contentType: 'text' | 'html';
+  content: string;
+}
+
 export interface EmailMessage {
   id?: string; // Produced from AES‑256‑GCM(providerId + provider + identifier + environmentId, secretKey)
   messageId?: string; // RFC 5322 Message-ID
   subject?: string;
-  from?: EmailAddress;
+  from?: EmailAddress[];
   sender?: EmailAddress;
   to: EmailAddress[];
   cc: EmailAddress[];
   replyTo: EmailAddress[];
   date?: string; // ISO 8601
-  body?: {
-    contentType: 'text' | 'html';
-    content: string;
-  }[];
+  body?: Body[];
   attachments?: {
     id: string;
     name: string;
@@ -47,4 +49,11 @@ export interface SMTPIMAPCredentials {
   email: string;
   password: string;
   useSSL: boolean;
+}
+
+export interface IDPayload {
+  providerId: string;
+  provider: string;
+  identifier: string;
+  environmentId: string;
 }

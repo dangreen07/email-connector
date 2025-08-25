@@ -6,8 +6,8 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { createRedisCachePlugin, hydrateTokenCache } from '../redisCachePlugin';
 import redis from '../redis';
 import { getGraphClient } from './GraphAPI';
-import { EmailMessage, StoredStateToken } from '../types';
 import { encrypt } from '../encryption';
+import { EmailMessage, StoredStateToken } from '../utils/types';
 
 const scopes = [
   'Mail.Read',

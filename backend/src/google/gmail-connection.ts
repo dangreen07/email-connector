@@ -1,11 +1,17 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { Environment, environments, connections } from '../db/schema';
 import redis from '../redis';
-import { EmailAddress, EmailMessage, StoredStateToken } from '../types';
+import { strToEmailAddress } from '../utils';
 import db from '../db';
 import { and, eq, sql } from 'drizzle-orm';
 import { gmail_v1, google } from 'googleapis';
 import { encrypt } from '../encryption';
+import {
+  EmailAddress,
+  EmailMessage,
+  IDPayload,
+  StoredStateToken,
+} from '../utils/types';
 
 export async function getGmailOauthLink(
   environment: Environment,
@@ -240,22 +246,6 @@ function getHeaderValue(
   return headers.find((header) => header.name === name)?.value;
 }
 
-function strToEmailAddress(str: string): EmailAddress {
-  const regex = /^(.*?)\s*<([^>]+)>$/;
-  const match = str.match(regex);
-  if (match) {
-    const name = match[1];
-    const email = match[2];
-    return {
-      name,
-      address: email,
-    };
-  }
-  return {
-    address: str,
-  };
-}
-
 const base64Decode = (input: string): string => {
   return Buffer.from(input, 'base64').toString('utf-8');
 };
@@ -297,8 +287,8 @@ function gmailToGeneric(
   identifier: string,
   environmentId: string,
 ): EmailMessage {
-  const payload = {
-    providerId: gmailMsg.id,
+  const payload: IDPayload = {
+    providerId: gmailMsg.id!,
     provider: 'gmail',
     identifier,
     environmentId,
@@ -308,13 +298,14 @@ function gmailToGeneric(
   const headers = gmailMsg.payload?.headers ?? [];
   const messageId = getHeaderValue(headers, 'Message-ID') ?? '';
   const subject = getHeaderValue(headers, 'Subject') ?? '';
-  const from = strToEmailAddress(getHeaderValue(headers, 'From') ?? '');
+  const from =
+    getHeaderValue(headers, 'From')?.split(',').map(strToEmailAddress) ?? [];
   const senderStr = getHeaderValue(headers, 'Sender');
   let sender: EmailAddress;
   if (senderStr) {
     sender = strToEmailAddress(senderStr);
   } else {
-    sender = from;
+    sender = from[0];
   }
   const to =
     getHeaderValue(headers, 'To')?.split(',').map(strToEmailAddress) ?? [];
@@ -326,11 +317,25 @@ function gmailToGeneric(
   const date = getHeaderValue(headers, 'Date') ?? undefined;
   const references =
     getHeaderValue(headers, 'References')?.split(' ') ?? undefined;
-  const body =
-    gmailMsg.payload?.parts
-      ?.map(getBody)
-      .flat()
-      .filter((part) => part !== null) ?? [];
+  // Body may also be in payload.body.data
+  const body = gmailMsg.payload?.body?.data
+    ? [
+        {
+          contentType:
+            gmailMsg.payload.headers
+              ?.find((h) => h.name === 'Content-Type')
+              ?.value?.split(';')
+              .at(0)
+              ?.trim() === 'text/html'
+              ? ('html' as const)
+              : ('text' as const),
+          content: base64Decode(gmailMsg.payload?.body?.data),
+        },
+      ]
+    : (gmailMsg.payload?.parts
+        ?.map(getBody)
+        .flat()
+        .filter((part) => part !== null) ?? []);
 
   const attachments =
     gmailMsg.payload?.parts
@@ -359,8 +364,8 @@ function gmailToGeneric(
         };
       }) ?? [];
 
-  const conversationPayload = {
-    providerId: gmailMsg.threadId,
+  const conversationPayload: IDPayload = {
+    providerId: gmailMsg.threadId!,
     provider: 'gmail',
     identifier,
     environmentId,

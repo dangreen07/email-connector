@@ -15,8 +15,12 @@ import {
   getGmailMessageById,
 } from '../google/gmail-connection';
 import { decrypt } from '../encryption';
-import { SMTPIMAPCredentials } from '../types';
-import { connectSMTPIMAP } from '../smtp-imap/smtp-imap-connection';
+import {
+  connectSMTPIMAP,
+  getSMTPIMAPMessageById,
+  getSMTPIMAPMessages,
+} from '../smtp-imap/smtp-imap-connection';
+import { SMTPIMAPCredentials } from '../utils/types';
 
 export default async function v1Routes(fastify: FastifyInstance) {
   // Returns a link to the provider's OAuth page with a callback URL to our server
@@ -53,6 +57,10 @@ export default async function v1Routes(fastify: FastifyInstance) {
         return response
           .status(400)
           .send({ error: 'Missing SMTP/IMAP connection parameters in body' });
+      }
+
+      if (!smtpCredentials.useSSL) {
+        smtpCredentials.useSSL = true;
       }
     }
 
@@ -131,7 +139,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
               .status(500)
               .send({ error: 'Failed to connect SMTP/IMAP' });
           }
-          break;
         default:
           return response.status(401).send({ error: 'Invalid provider code' });
       }
@@ -171,7 +178,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
     }
 
     // Check whether the publishable and secret key are valid and get the oauth connection
-    const oauthConnection = await db
+    const connection = await db
       .select()
       .from(connections)
       .innerJoin(environments, eq(connections.environmentId, environments.id))
@@ -184,7 +191,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
       )
       .limit(1)
       .then((rows) => rows.at(0)?.connections ?? null);
-    if (!oauthConnection) {
+    if (!connection) {
       return response
         .status(401)
         .send({ error: 'Could not find a valid connection' });
@@ -195,7 +202,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
         try {
           const messages = await getOutlookMessages(
             identifier,
-            oauthConnection.environmentId,
+            connection.environmentId,
             limit,
           );
           return response.status(200).send({ messages });
@@ -214,7 +221,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
         try {
           const messages = await getGmailMessages(
             identifier,
-            oauthConnection.environmentId,
+            connection.environmentId,
             limit,
           );
           return response.status(200).send({ messages });
@@ -227,12 +234,22 @@ export default async function v1Routes(fastify: FastifyInstance) {
             .send({ error: errorMessage, code: err?.code });
         }
       case 'smtp-imap':
-        break;
+        try {
+          const messages = await getSMTPIMAPMessages(
+            identifier,
+            connection.environmentId,
+            limit,
+          );
+          return response.status(200).send({ messages });
+        } catch (err: any) {
+          console.error(err);
+          return response
+            .status(500)
+            .send({ error: 'Failed to fetch SMTP/IMAP messages' });
+        }
       default:
         return response.status(401).send({ error: 'Invalid provider code' });
     }
-
-    return response.status(200).send('OK');
   });
 
   fastify.get('/messages/by-id', async function handler(request, response) {
@@ -295,6 +312,14 @@ export default async function v1Routes(fastify: FastifyInstance) {
         }
         case 'gmail': {
           const message = await getGmailMessageById(
+            identifier,
+            environmentId,
+            providerId,
+          );
+          return response.status(200).send({ message });
+        }
+        case 'smtp-imap': {
+          const message = await getSMTPIMAPMessageById(
             identifier,
             environmentId,
             providerId,
