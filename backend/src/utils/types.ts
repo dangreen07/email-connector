@@ -8,6 +8,15 @@ export interface Body {
   content: string;
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  contentType: string;
+  size: number;
+  isInline: boolean;
+  contentId?: string;
+}
+
 export interface EmailMessage {
   id?: string; // Produced from AES‑256‑GCM(providerId + provider + identifier + environmentId, secretKey)
   messageId?: string; // RFC 5322 Message-ID
@@ -19,14 +28,7 @@ export interface EmailMessage {
   replyTo: EmailAddress[];
   date?: string; // ISO 8601
   body?: Body[];
-  attachments?: {
-    id: string;
-    name: string;
-    contentType: string;
-    size: number;
-    isInline: boolean;
-    contentId?: string;
-  }[];
+  attachments?: Attachment[];
   headers?: Record<string, string>; // raw headers if available
   thread?: {
     conversationId?: string;

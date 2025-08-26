@@ -10,6 +10,7 @@ import {
   IDPayload,
   SMTPIMAPCredentials,
   Body,
+  Attachment,
 } from '../utils/types';
 import { simpleParser } from 'mailparser';
 
@@ -112,7 +113,6 @@ export async function getSMTPIMAPMessages(
       smtpImapToGeneric(message, identifier, environmentId),
     ),
   );
-  // return messages;
 }
 
 export async function getSMTPIMAPMessageById(
@@ -125,7 +125,7 @@ export async function getSMTPIMAPMessageById(
 
 async function smtpImapToGeneric(
   message: Message,
-  identfier: string,
+  identifier: string,
   environmentId: string,
 ): Promise<EmailMessage> {
   const email = await simpleParser(
@@ -150,7 +150,7 @@ async function smtpImapToGeneric(
       process.env.ID_CREATION_SECRET!,
     ),
     provider: 'smtp-imap',
-    identifier: identfier,
+    identifier: identifier,
     environmentId: environmentId,
   };
   const id = encrypt(JSON.stringify(payload), process.env.ID_CREATION_SECRET!);
@@ -212,7 +212,28 @@ async function smtpImapToGeneric(
       content: email.html,
     });
   }
-  // TODO: Parse attachments
+
+  const attachments: Attachment[] = email.attachments.map((attachment) => {
+    const payload: IDPayload = {
+      providerId: attachment.contentId!,
+      provider: 'smtp-imap',
+      identifier: identifier,
+      environmentId,
+    };
+    const id = encrypt(
+      JSON.stringify(payload),
+      process.env.ID_CREATION_SECRET!,
+    );
+
+    return {
+      id,
+      name: attachment.filename ?? '',
+      contentType: attachment.contentType,
+      size: attachment.size,
+      isInline: false,
+      contentId: attachment.contentId,
+    };
+  });
   // Threads are harder for SMTP/IMAP, so it will use the message ID as the conversation ID, then we can use the References header to find all related messages
   return {
     id,
@@ -228,5 +249,6 @@ async function smtpImapToGeneric(
     thread: {
       conversationId: id,
     },
+    attachments,
   };
 }
