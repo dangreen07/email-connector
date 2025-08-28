@@ -13,7 +13,6 @@ export interface Attachment {
   name: string;
   contentType: string;
   size: number;
-  isInline: boolean;
   contentId?: string;
 }
 

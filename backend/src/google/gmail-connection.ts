@@ -7,6 +7,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { gmail_v1, google } from 'googleapis';
 import { encrypt } from '../encryption';
 import {
+  Attachment,
   EmailAddress,
   EmailMessage,
   IDPayload,
@@ -337,7 +338,7 @@ function gmailToGeneric(
         .flat()
         .filter((part) => part !== null) ?? []);
 
-  const attachments =
+  const attachments: Attachment[] =
     gmailMsg.payload?.parts
       ?.filter(
         (part) =>
@@ -360,7 +361,6 @@ function gmailToGeneric(
           name: part.filename ?? '',
           contentType: part.mimeType ?? '',
           size: part.body?.size ?? 0,
-          isInline: false,
         };
       }) ?? [];
 

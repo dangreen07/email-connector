@@ -230,7 +230,6 @@ async function smtpImapToGeneric(
       name: attachment.filename ?? '',
       contentType: attachment.contentType,
       size: attachment.size,
-      isInline: false,
       contentId: attachment.contentId,
     };
   });

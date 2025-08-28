@@ -20,7 +20,12 @@ import {
   getSMTPIMAPMessageById,
   getSMTPIMAPMessages,
 } from '../smtp-imap/smtp-imap-connection';
-import { SMTPIMAPCredentials } from '../utils/types';
+import {
+  Attachment,
+  Body,
+  EmailAddress,
+  SMTPIMAPCredentials,
+} from '../utils/types';
 
 export default async function v1Routes(fastify: FastifyInstance) {
   // Returns a link to the provider's OAuth page with a callback URL to our server
@@ -147,6 +152,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
     }
   });
 
+  // Get messages
   fastify.get('/messages', async function handler(request, response) {
     const headers = request.headers;
     const authorization = headers.authorization;
@@ -252,6 +258,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
     }
   });
 
+  // Get an email
   fastify.get('/messages/by-id', async function handler(request, response) {
     const headers = request.headers;
     const authorization = headers.authorization;
@@ -337,6 +344,37 @@ export default async function v1Routes(fastify: FastifyInstance) {
         .status(statusCode)
         .send({ error: errorMessage, code: err?.code });
     }
+  });
+
+  // Send an email
+  fastify.post('/messages', async function handler(request, response) {
+    const headers = request.headers;
+    const authorization = headers.authorization;
+    if (!authorization) {
+      return response
+        .status(401)
+        .send({ error: 'Missing authorization header' });
+    }
+    const secretKey = authorization.split(' ')[1];
+
+    const query = request.query as {
+      identifier: string;
+      providerCode: string;
+    };
+
+    const body = request.body as {
+      to: EmailAddress[];
+      cc?: EmailAddress[];
+      bcc?: EmailAddress[];
+      subject: string;
+      bodies: Body[];
+      attachments?: Attachment[];
+      thread?: {
+        conversationId?: string;
+        inReplyTo?: string;
+        references?: string;
+      };
+    };
   });
 
   // Callback endpoints
