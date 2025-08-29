@@ -13,6 +13,7 @@ import {
   getGmailOauthLink,
   handleGmailCallback,
   getGmailMessageById,
+  sendGmailEmail,
 } from '../google/gmail-connection';
 import { decrypt } from '../encryption';
 import {
@@ -24,6 +25,7 @@ import {
   Attachment,
   Body,
   EmailAddress,
+  SendEmail,
   SMTPIMAPCredentials,
 } from '../utils/types';
 
@@ -362,19 +364,33 @@ export default async function v1Routes(fastify: FastifyInstance) {
       providerCode: string;
     };
 
-    const body = request.body as {
-      to: EmailAddress[];
-      cc?: EmailAddress[];
-      bcc?: EmailAddress[];
-      subject: string;
-      bodies: Body[];
-      attachments?: Attachment[];
-      thread?: {
-        conversationId?: string;
-        inReplyTo?: string;
-        references?: string;
-      };
-    };
+    const email = request.body as SendEmail;
+
+    const environment = await db
+      .select()
+      .from(environments)
+      .where(eq(environments.secretKey, secretKey))
+      .then((rows) => rows.at(0) ?? null);
+
+    if (!environment) {
+      return response
+        .status(401)
+        .send({ error: 'Could not find a valid connection' });
+    }
+
+    switch (query.providerCode) {
+      case 'gmail':
+        const result = await sendGmailEmail(
+          query.identifier,
+          environment.id,
+          email,
+        );
+        return response.status(200).send({ emailId: result });
+      case 'outlook':
+        break;
+      case 'smtp-imap':
+        break;
+    }
   });
 
   // Callback endpoints

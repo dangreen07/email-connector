@@ -11,8 +11,10 @@ import {
   EmailAddress,
   EmailMessage,
   IDPayload,
+  SendEmail,
   StoredStateToken,
 } from '../utils/types';
+import { buildRawEmail } from './send-formatting';
 
 export async function getGmailOauthLink(
   environment: Environment,
@@ -108,6 +110,10 @@ export async function handleGmailCallback(
 
   const tokenResponse = await client.getToken(code);
 
+  const expires_at = tokenResponse.tokens.expiry_date
+    ? new Date(tokenResponse.tokens.expiry_date)
+    : new Date(new Date().getTime() + 3600); // Default to an hour in the future
+
   await db
     .insert(connections)
     .values({
@@ -116,7 +122,7 @@ export async function handleGmailCallback(
       identifier: stateToken.identifier,
       accessToken: tokenResponse.tokens.access_token,
       refreshToken: tokenResponse.tokens.refresh_token,
-      expiresAt: new Date(tokenResponse.tokens.expiry_date ?? 0),
+      expiresAt: expires_at,
     })
     .onConflictDoUpdate({
       target: [
@@ -127,7 +133,7 @@ export async function handleGmailCallback(
       set: {
         accessToken: tokenResponse.tokens.access_token,
         refreshToken: sql`COALESCE(EXCLUDED.refresh_token, ${tokenResponse.tokens.refresh_token})`,
-        expiresAt: new Date(tokenResponse.tokens.expiry_date ?? 0),
+        expiresAt: expires_at,
       },
     });
 
@@ -227,6 +233,17 @@ export async function getGmailMessageById(
     refresh_token: oauthConnection.refreshToken ?? undefined,
     expiry_date: oauthConnection.expiresAt?.getTime(),
   });
+
+  if (Date.now() > (oauthConnection.expiresAt?.getTime() ?? Date.now())) {
+    const accessToken = (await client.getAccessToken()).token;
+    await db.update(connections).set({
+      accessToken: accessToken,
+      refreshToken: client.credentials.refresh_token,
+      expiresAt: client.credentials.expiry_date
+        ? new Date(client.credentials.expiry_date)
+        : new Date(new Date().getTime() + 3600), // Default to an hour
+    });
+  }
 
   const gmail = google.gmail({ version: 'v1', auth: client });
 
@@ -395,4 +412,84 @@ function gmailToGeneric(
     attachments,
     thread,
   };
+}
+
+export async function sendGmailEmail(
+  identifier: string,
+  environmentId: string,
+  email: SendEmail,
+) {
+  const oauthConnection = await db
+    .select()
+    .from(connections)
+    .where(
+      and(
+        eq(connections.environmentId, environmentId),
+        eq(connections.providerCode, 'gmail'),
+        eq(connections.identifier, identifier),
+      ),
+    )
+    .then((rows) => rows.at(0) ?? null);
+
+  if (!oauthConnection) {
+    throw new Error('No Gmail OAuth connection found. Connect Gmail first.');
+  }
+
+  const client = new google.auth.OAuth2({
+    client_id: process.env.GOOGLE_CLIENT_ID!,
+    client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirect_uris: [`${process.env.API_URL}/v1/callback/gmail`],
+  });
+
+  client.setCredentials({
+    access_token: oauthConnection.accessToken,
+    refresh_token: oauthConnection.refreshToken,
+    expiry_date: oauthConnection.expiresAt?.getTime(),
+  });
+
+  if (Date.now() > (oauthConnection.expiresAt?.getTime() ?? Date.now())) {
+    const accessToken = (await client.getAccessToken()).token;
+    await db.update(connections).set({
+      accessToken: accessToken,
+      refreshToken: client.credentials.refresh_token,
+      expiresAt: client.credentials.expiry_date
+        ? new Date(client.credentials.expiry_date)
+        : new Date(new Date().getTime() + 3600),
+    });
+  }
+
+  const gmail = google.gmail({ version: 'v1', auth: client });
+
+  const profile = await gmail.users.getProfile({ userId: 'me' });
+  const senderEmail = profile.data?.emailAddress;
+  if (!senderEmail) {
+    throw new Error(
+      'Unable to determine authenticated Gmail address. ' +
+        'Make sure the token has appropriate Gmail scopes.',
+    );
+  }
+
+  const fromAddr = { address: senderEmail, name: undefined };
+
+  const rawEmail = buildRawEmail(email, fromAddr);
+
+  const emailResult = await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: {
+      raw: rawEmail,
+    },
+  });
+  const messageId = emailResult.data.id;
+  if (!messageId) {
+    throw new Error('Failed to send message!');
+  }
+  const payload: IDPayload = {
+    providerId: messageId,
+    provider: 'gmail',
+    identifier: identifier,
+    environmentId: environmentId,
+  };
+  const id = encrypt(JSON.stringify(payload), process.env.ID_CREATION_SECRET!);
+
+  return id;
 }

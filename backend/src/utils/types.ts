@@ -58,3 +58,17 @@ export interface IDPayload {
   identifier: string;
   environmentId: string;
 }
+
+export interface SendEmail {
+  to: EmailAddress[];
+  cc?: EmailAddress[];
+  bcc?: EmailAddress[];
+  subject: string;
+  bodies: Body[];
+  attachments?: { fileName: string; mimeType: string; content: string }[];
+  thread?: {
+    conversationId?: string;
+    inReplyTo?: string;
+    references?: string;
+  };
+}
