@@ -11,8 +11,10 @@ import {
   SMTPIMAPCredentials,
   Body,
   Attachment,
+  SendEmail,
 } from '../utils/types';
 import { simpleParser } from 'mailparser';
+import nodemailer from 'nodemailer';
 
 export async function connectSMTPIMAP(
   environment: Environment,
@@ -250,4 +252,69 @@ async function smtpImapToGeneric(
     },
     attachments,
   };
+}
+
+export async function sendSMTPIMAPEmail(
+  identifier: string,
+  environmentId: string,
+  email: SendEmail,
+) {
+  const connection = await db
+    .select()
+    .from(connections)
+    .where(
+      and(
+        eq(connections.environmentId, environmentId),
+        eq(connections.identifier, identifier),
+      ),
+    )
+    .then((value) => value.at(0) ?? null);
+
+  if (!connection) {
+    throw Error('Could not find connection!');
+  }
+
+  const rawCredentials = connection.credentials;
+  if (!rawCredentials) {
+    throw Error('Could not get credentials!');
+  }
+  const credentials: SMTPIMAPCredentials = JSON.parse(
+    decrypt(rawCredentials, process.env.CRED_ENCRYPTION_KEY!),
+  );
+
+  const transporter = nodemailer.createTransport({
+    host: credentials.smtpServer,
+    port: credentials.smtpPort,
+    secure: credentials.useSSL,
+    auth: {
+      user: credentials.email,
+      pass: credentials.password,
+    },
+  });
+
+  const info = await transporter.sendMail({
+    from: credentials.email,
+    to: email.to.map((t) => t.address).join(', '),
+    cc: email.cc?.map((c) => c.address).join(', '),
+    bcc: email.bcc?.map((b) => b.address).join(', '),
+    subject: email.subject,
+    text: email.bodies.find((b) => b.contentType === 'text')?.content,
+    html: email.bodies.find((b) => b.contentType === 'html')?.content,
+    attachments: email.attachments?.map((a) => ({
+      filename: a.fileName,
+      content: Buffer.from(a.content, 'base64'),
+      contentType: a.mimeType,
+    })),
+  });
+
+  const payload: IDPayload = {
+    providerId: info.messageId,
+    provider: 'smtp-imap',
+    identifier: identifier,
+    environmentId: environmentId,
+  };
+
+  const id = encrypt(JSON.stringify(payload), process.env.ID_CREATION_SECRET!);
+
+  return id;
 }

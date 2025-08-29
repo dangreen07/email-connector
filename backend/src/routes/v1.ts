@@ -21,14 +21,9 @@ import {
   connectSMTPIMAP,
   getSMTPIMAPMessageById,
   getSMTPIMAPMessages,
+  sendSMTPIMAPEmail,
 } from '../smtp-imap/smtp-imap-connection';
-import {
-  Attachment,
-  Body,
-  EmailAddress,
-  SendEmail,
-  SMTPIMAPCredentials,
-} from '../utils/types';
+import { SendEmail, SMTPIMAPCredentials } from '../utils/types';
 
 export default async function v1Routes(fastify: FastifyInstance) {
   // Returns a link to the provider's OAuth page with a callback URL to our server
@@ -391,9 +386,13 @@ export default async function v1Routes(fastify: FastifyInstance) {
           email,
         );
         return response.status(200).send({ emailId: result });
-        break;
       case 'smtp-imap':
-        break;
+        result = await sendSMTPIMAPEmail(
+          query.identifier,
+          environment.id,
+          email,
+        );
+        return response.status(200).send({ emailId: result });
     }
   });
 

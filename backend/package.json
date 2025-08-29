@@ -13,6 +13,7 @@
   "devDependencies": {
     "@types/imap-simple": "^4.2.10",
     "@types/mailparser": "^3.4.6",
+    "@types/nodemailer": "^7.0.1",
     "dotenv": "^16.4.7",
     "drizzle-kit": "^0.30.5",
     "nodemon": "^3.1.9",
@@ -33,6 +34,7 @@
     "ioredis": "^5.7.0",
     "isomorphic-fetch": "^3.0.0",
     "mailparser": "^3.7.4",
+    "nodemailer": "^7.0.5",
     "redis": "^5.8.1",
     "ts-node": "^10.9.2"
   }
