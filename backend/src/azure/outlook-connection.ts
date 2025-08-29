@@ -7,7 +7,12 @@ import { createRedisCachePlugin, hydrateTokenCache } from '../redisCachePlugin';
 import redis from '../redis';
 import { getGraphClient } from './GraphAPI';
 import { encrypt } from '../encryption';
-import { EmailMessage, StoredStateToken } from '../utils/types';
+import {
+  EmailMessage,
+  IDPayload,
+  SendEmail,
+  StoredStateToken,
+} from '../utils/types';
 
 const scopes = [
   'Mail.Read',
@@ -17,6 +22,7 @@ const scopes = [
   'profile',
   'email',
   'User.Read',
+  'Mail.ReadWrite',
 ];
 
 function createMsalClient(identifier: string, environmentId: string) {
@@ -291,4 +297,76 @@ function outlookToGeneric(
       // conversationIndex is Outlook-specific, not RFC standard
     },
   };
+}
+
+export async function sendOutlookEmail(
+  identifier: string,
+  environmentId: string,
+  email: SendEmail,
+) {
+  const accessToken = await getOutlookAccessToken(identifier, environmentId);
+  if (!accessToken) {
+    const err: any = new Error(
+      'No Outlook access token available. Connect Outlook first.',
+    );
+    err.statusCode = 401;
+    throw err;
+  }
+
+  const client = getGraphClient(accessToken);
+
+  const message: any = {
+    subject: email.subject,
+    body: {
+      contentType: email.bodies[0].contentType === 'html' ? 'HTML' : 'Text',
+      content: email.bodies[0].content,
+    },
+    toRecipients: email.to.map((t) => ({ emailAddress: t })),
+    ccRecipients: email.cc?.map((c) => ({ emailAddress: c })),
+    bccRecipients: email.bcc?.map((b) => ({ emailAddress: b })),
+    attachments: email.attachments?.map((a) => ({
+      '@odata.type': '#microsoft.graph.fileAttachment',
+      name: a.fileName,
+      contentType: a.mimeType,
+      contentBytes: a.content,
+    })),
+  };
+
+  // Add threading headers if provided
+  if (email.thread) {
+    message.internetMessageHeaders = [];
+
+    if (email.thread.inReplyTo) {
+      message.internetMessageHeaders.push({
+        name: 'In-Reply-To',
+        value: email.thread.inReplyTo,
+      });
+    }
+
+    if (email.thread.references) {
+      message.internetMessageHeaders.push({
+        name: 'References',
+        value: email.thread.references,
+      });
+    }
+  }
+
+  // Step 1: Create Draft
+  const draft = await client.api('/me/messages').post(message);
+
+  // Step 2: Send it
+  await client.api(`/me/messages/${draft.id}/send`).post({});
+
+  const messageId = draft.internetMessageId;
+
+  const payload: IDPayload = {
+    providerId: messageId,
+    provider: 'outlook',
+    identifier: identifier,
+    environmentId: environmentId,
+  };
+
+  const id = encrypt(JSON.stringify(payload), process.env.ID_CREATION_SECRET!);
+
+  return id;
 }

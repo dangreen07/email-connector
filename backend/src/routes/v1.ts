@@ -7,6 +7,7 @@ import {
   getOutlookOAuthLink,
   handleOutlookCallback,
   getOutlookMessageById,
+  sendOutlookEmail,
 } from '../azure/outlook-connection';
 import {
   getGmailMessages,
@@ -378,15 +379,18 @@ export default async function v1Routes(fastify: FastifyInstance) {
         .send({ error: 'Could not find a valid connection' });
     }
 
+    let result = '';
     switch (query.providerCode) {
       case 'gmail':
-        const result = await sendGmailEmail(
+        result = await sendGmailEmail(query.identifier, environment.id, email);
+        return response.status(200).send({ emailId: result });
+      case 'outlook':
+        result = await sendOutlookEmail(
           query.identifier,
           environment.id,
           email,
         );
         return response.status(200).send({ emailId: result });
-      case 'outlook':
         break;
       case 'smtp-imap':
         break;
