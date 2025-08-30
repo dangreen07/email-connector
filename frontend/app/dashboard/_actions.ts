@@ -5,6 +5,7 @@ import { connectedProviders, environments, projects } from "@/utils/db/schema";
 import { auth } from "@clerk/nextjs/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
+import { encrypt } from "@/utils/encryption";
 
 function generateApiKey(prefix: string) {
   return `${prefix}_${randomBytes(24).toString("hex")}`;
@@ -309,24 +310,40 @@ async function updateWithCredentials(
     | undefined,
   providerCode: "outlook" | "gmail"
 ) {
-  if (enabled && environmentName == "production" && !credentials) {
-    // Credentials required to update this!
-    // No error response, as this shouldn't happen. Just log it.
-    console.log(
-      `Credentials required for production environment! (${providerCode})`
-    );
-    await db
-      .update(connectedProviders)
-      .set({
-        enabled: false,
-      })
-      .where(
-        and(
-          eq(connectedProviders.environmentId, environmentId),
-          eq(connectedProviders.providerCode, providerCode)
-        )
+  if (enabled && environmentName == "production") {
+    if (credentials) {
+      const credentialsEncrypted = encrypt(
+        JSON.stringify(credentials),
+        process.env.CRED_ENCRYPTION_KEY!
       );
-    return;
+      await db
+        .update(connectedProviders)
+        .set({ enabled: enabled, credentials: credentialsEncrypted })
+        .where(
+          and(
+            eq(connectedProviders.environmentId, environmentId),
+            eq(connectedProviders.providerCode, providerCode)
+          )
+        );
+    } else {
+      // Credentials required to update this!
+      // No error response, as this shouldn't happen. Just log it.
+      console.log(
+        `Credentials required for production environment! (${providerCode})`
+      );
+      await db
+        .update(connectedProviders)
+        .set({
+          enabled: false,
+        })
+        .where(
+          and(
+            eq(connectedProviders.environmentId, environmentId),
+            eq(connectedProviders.providerCode, providerCode)
+          )
+        );
+      return;
+    }
   }
   await db
     .update(connectedProviders)

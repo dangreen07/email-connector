@@ -13,7 +13,7 @@ import {
 } from "./_components";
 import { Button } from "@/components/ui/button";
 import { UpdateEnvironmentSettings } from "../../_actions";
-import { ConnectedProvider } from "@/utils/db/schema";
+import { DashboardProvider } from "@/utils/types";
 
 export default function EnvironmentDashboard(props: {
   projectId: string;
@@ -22,14 +22,14 @@ export default function EnvironmentDashboard(props: {
   environmentName: string;
   publishableKey: string;
   secretKey: string;
-  enabledProviders: ConnectedProvider[];
+  providers: DashboardProvider[];
 }) {
   const {
     projectName: projectNameProp,
     environmentName: environmentNameProp,
     publishableKey: publishableKeyProp,
     secretKey: secretKeyProp,
-    enabledProviders,
+    providers,
     projectId,
     environmentId,
   } = props;
@@ -52,12 +52,19 @@ export default function EnvironmentDashboard(props: {
 
   const enabledProviderToBoolean = useCallback(
     (provider: string): boolean =>
-      enabledProviders.find((p) => p.providerCode === provider)?.enabled ??
-      false,
-    [enabledProviders]
+      providers.find((p) => p.providerCode === provider)?.enabled ?? false,
+    [providers]
+  );
+
+  const getProviderCredentials = useCallback(
+    (provider: string) =>
+      providers.find((p) => p.providerCode === provider)?.credentials,
+    [providers]
   );
 
   useEffect(() => {
+    const gmailCredentials = getProviderCredentials("gmail");
+    const outlookCredentials = getProviderCredentials("outlook");
     changeEnvironmentOrProject(
       projectNameProp,
       environmentNameProp,
@@ -65,7 +72,11 @@ export default function EnvironmentDashboard(props: {
       secretKeyProp,
       enabledProviderToBoolean("outlook"),
       enabledProviderToBoolean("gmail"),
-      enabledProviderToBoolean("smtp-imap")
+      enabledProviderToBoolean("smtp-imap"),
+      gmailCredentials?.clientId,
+      gmailCredentials?.clientSecret,
+      outlookCredentials?.clientId,
+      outlookCredentials?.clientSecret
     );
   }, [
     projectNameProp,
@@ -74,6 +85,7 @@ export default function EnvironmentDashboard(props: {
     secretKeyProp,
     changeEnvironmentOrProject,
     enabledProviderToBoolean,
+    getProviderCredentials,
   ]);
 
   const [isSaving, setIsSaving] = useState(false);

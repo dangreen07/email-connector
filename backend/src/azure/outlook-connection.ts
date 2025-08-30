@@ -25,12 +25,17 @@ const scopes = [
   'Mail.ReadWrite',
 ];
 
-function createMsalClient(identifier: string, environmentId: string) {
+function createMsalClient(
+  identifier: string,
+  environmentId: string,
+  clientId?: string,
+  clientSecret?: string,
+) {
   const msalConfig: Configuration = {
     auth: {
-      clientId: process.env.AZURE_CLIENT_ID!,
+      clientId: clientId ?? process.env.AZURE_CLIENT_ID!,
       authority: `https://login.microsoftonline.com/common`,
-      clientSecret: process.env.AZURE_CLIENT_SECRET!,
+      clientSecret: clientSecret ?? process.env.AZURE_CLIENT_SECRET!,
     },
     cache: {
       cachePlugin: createRedisCachePlugin(identifier, environmentId),

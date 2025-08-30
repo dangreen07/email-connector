@@ -8,12 +8,12 @@ export type DashboardState = {
   secretKey: string;
 
   outlookEnabled: boolean;
-  outlookClientId?: string;
-  outlookClientSecret?: string;
+  outlookClientId: string;
+  outlookClientSecret: string;
 
   gmailEnabled: boolean;
-  gmailClientId?: string;
-  gmailClientSecret?: string;
+  gmailClientId: string;
+  gmailClientSecret: string;
 
   imapEnabled: boolean;
   currentTab: "connections" | "settings";
@@ -59,8 +59,12 @@ export const initDashboardStore = (): DashboardState => {
     publishableKey: "",
     secretKey: "",
     outlookEnabled: false,
+    outlookClientId: "",
+    outlookClientSecret: "",
 
     gmailEnabled: false,
+    gmailClientId: "",
+    gmailClientSecret: "",
 
     imapEnabled: false,
 
@@ -75,8 +79,12 @@ export const defaultInitState: DashboardState = {
   publishableKey: "",
   secretKey: "",
   outlookEnabled: false,
+  outlookClientId: "",
+  outlookClientSecret: "",
 
   gmailEnabled: false,
+  gmailClientId: "",
+  gmailClientSecret: "",
 
   imapEnabled: false,
 
@@ -101,8 +109,9 @@ export const createDashboardStore = (
       gmailClientSecret?: string,
       outlookClientId?: string,
       outlookClientSecret?: string
-    ) =>
-      set({
+    ) => {
+      // Build payload and only include optional credential fields when provided.
+      const payload: Partial<DashboardState & { changed: boolean }> = {
         projectName,
         environmentName,
         publishableKey,
@@ -111,11 +120,19 @@ export const createDashboardStore = (
         gmailEnabled,
         imapEnabled,
         changed: false,
-        gmailClientId: gmailClientId,
-        gmailClientSecret: gmailClientSecret,
-        outlookClientId: outlookClientId,
-        outlookClientSecret: outlookClientSecret,
-      }),
+      };
+
+      if (gmailClientId !== undefined) payload.gmailClientId = gmailClientId;
+      if (gmailClientSecret !== undefined)
+        payload.gmailClientSecret = gmailClientSecret;
+      if (outlookClientId !== undefined)
+        payload.outlookClientId = outlookClientId;
+      if (outlookClientSecret !== undefined)
+        payload.outlookClientSecret = outlookClientSecret;
+
+      // Use a typed cast to satisfy the setter signature without using `any`.
+      set(payload as Partial<DashboardStore>);
+    },
     setProjectName: (projectName) => set({ projectName, changed: true }),
     setEnvironmentName: (environmentName) => set({ environmentName }), // Not currently allowing users to change
     setPublishableKey: (publishableKey) => set({ publishableKey }), // Not currently allowing users to change

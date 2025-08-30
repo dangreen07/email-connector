@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import EnvironmentDashboard from "./EnvironmentDashboard";
+import { decrypt } from "@/utils/encryption";
 
 export default async function EnvironmentPage({
   params,
@@ -35,7 +36,26 @@ export default async function EnvironmentPage({
   const providers = await db
     .select()
     .from(connectedProviders)
-    .where(eq(connectedProviders.environmentId, environmentId));
+    .where(eq(connectedProviders.environmentId, environmentId))
+    .then((providers) =>
+      providers.map((provider) => {
+        if (project.environments.name == "production") {
+          if (provider.credentials) {
+            const credentials = JSON.parse(
+              decrypt(provider.credentials, process.env.CRED_ENCRYPTION_KEY!)
+            ) as { clientId: string; clientSecret: string };
+            return {
+              ...provider,
+              credentials: credentials,
+            };
+          }
+        }
+        return {
+          ...provider,
+          credentials: undefined,
+        };
+      })
+    );
 
   return (
     <EnvironmentDashboard
@@ -43,7 +63,7 @@ export default async function EnvironmentPage({
       environmentName={project.environments.name}
       publishableKey={project.environments.publishableKey}
       secretKey={project.environments.secretKey}
-      enabledProviders={providers}
+      providers={providers}
       projectId={projectId}
       environmentId={environmentId}
     />
