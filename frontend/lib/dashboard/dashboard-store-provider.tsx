@@ -1,43 +1,49 @@
 "use client";
 
-import { type ReactNode, createContext, useRef, useContext } from 'react'
-import { useStore } from 'zustand'
+import { type ReactNode, createContext, useRef, useContext } from "react";
+import { useStore } from "zustand";
 
 import {
-    type DashboardStore,
-    createDashboardStore,
-    initDashboardStore,
-} from './dashboard-store';
+  type DashboardStore,
+  createDashboardStore,
+  initDashboardStore,
+} from "./dashboard-store";
 
 export type DashboardStoreApi = ReturnType<typeof createDashboardStore>;
 
-export const DashboardStoreContext = createContext<DashboardStoreApi | undefined>(undefined);
+export const DashboardStoreContext = createContext<
+  DashboardStoreApi | undefined
+>(undefined);
 
 export interface DashboardStoreProviderProps {
-    children: ReactNode;
+  children: ReactNode;
 }
 
-export const DashboardStoreProvider = ({ children }: DashboardStoreProviderProps) => {
-    const storeRef = useRef<DashboardStoreApi | null>(null);
-    if (storeRef.current === null) {
-        storeRef.current = createDashboardStore(initDashboardStore());
-    }
+export const DashboardStoreProvider = ({
+  children,
+}: DashboardStoreProviderProps) => {
+  const storeRef = useRef<DashboardStoreApi | null>(null);
+  if (storeRef.current === null) {
+    storeRef.current = createDashboardStore(initDashboardStore());
+  }
 
-    return (
-        <DashboardStoreContext.Provider value={storeRef.current}>
-            {children}
-        </DashboardStoreContext.Provider>
-    )
-}
+  return (
+    <DashboardStoreContext.Provider value={storeRef.current}>
+      {children}
+    </DashboardStoreContext.Provider>
+  );
+};
 
 export const useDashboardStore = <T,>(
-    selector: (state: DashboardStore) => T,
+  selector: (state: DashboardStore) => T
 ): T => {
-    const dashboardStoreContext = useContext(DashboardStoreContext);
+  const dashboardStoreContext = useContext(DashboardStoreContext);
 
-    if (!dashboardStoreContext) {
-        throw new Error("useDashboardStore must be used within a DashboardStoreProvider");
-    }
+  if (!dashboardStoreContext) {
+    throw new Error(
+      "useDashboardStore must be used within a DashboardStoreProvider"
+    );
+  }
 
-    return useStore(dashboardStoreContext, selector);
-}
+  return useStore(dashboardStoreContext, selector);
+};

@@ -393,6 +393,10 @@ export default async function v1Routes(fastify: FastifyInstance) {
           email,
         );
         return response.status(200).send({ emailId: result });
+      default:
+        return response
+          .status(500)
+          .send({ error: 'Provider is not supported!' });
     }
   });
 
