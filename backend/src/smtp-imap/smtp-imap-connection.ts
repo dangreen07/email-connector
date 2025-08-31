@@ -121,8 +121,57 @@ export async function getSMTPIMAPMessageById(
   identifier: string,
   environmentId: string,
   providerId: string,
-) {
-  // TODO: Implement
+): Promise<EmailMessage> {
+  const connection = await db
+    .select()
+    .from(connections)
+    .where(
+      and(
+        eq(connections.identifier, identifier),
+        eq(connections.environmentId, environmentId),
+        eq(connections.providerCode, 'smtp-imap'),
+      ),
+    )
+    .then((rows) => rows.at(0) ?? null);
+
+  if (!connection || !connection.credentials) {
+    console.error('No connection found for this identifier');
+    throw new Error('No connection found for this identifier');
+  }
+  const credentials = decrypt(
+    connection.credentials,
+    process.env.CRED_ENCRYPTION_KEY!,
+  );
+  const decryptedCredentials: SMTPIMAPCredentials = JSON.parse(credentials);
+
+  const client = await connect({
+    imap: {
+      user: decryptedCredentials.email,
+      host: decryptedCredentials.imapServer,
+      port: decryptedCredentials.imapPort,
+      tls: decryptedCredentials.useSSL,
+      password: decryptedCredentials.password,
+    },
+  });
+
+  await client.openBox('INBOX');
+
+  // Search for the message by Message-ID header
+  const searchCriteria = [['HEADER', 'Message-ID', providerId]];
+  const fetchOptions = {
+    bodies: ['HEADER', 'TEXT'],
+    struct: true,
+  };
+
+  const result = await client
+    .search(searchCriteria, fetchOptions)
+    .then((value) => value.at(0) ?? null);
+
+  if (!result) {
+    throw Error(`No message found with Message-ID ${providerId}`);
+  }
+
+  return smtpImapToGeneric(result, identifier, environmentId);
 }
 
 async function smtpImapToGeneric(
@@ -257,6 +306,7 @@ async function smtpImapToGeneric(
 export async function sendSMTPIMAPEmail(
   identifier: string,
   environmentId: string,
+  environmentName: string,
   email: SendEmail,
 ) {
   const connection = await db

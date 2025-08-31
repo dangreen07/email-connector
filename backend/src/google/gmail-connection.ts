@@ -16,16 +16,35 @@ import {
 } from '../utils/types';
 import { buildRawEmail } from './send-formatting';
 
+function getGoogleClient(environmentName: string) {
+  let client_id = '';
+  let client_secret = '';
+  // For now just use the current API for callbacks
+  const redirect_uris = [`${process.env.API_URL}/v1/callback/gmail`];
+  if (environmentName == 'development') {
+    if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+      client_id = process.env.GOOGLE_CLIENT_ID;
+      client_secret = process.env.GOOGLE_CLIENT_SECRET;
+    }
+  } else if (environmentName == 'production') {
+    // TODO: Implement this
+    throw Error('Not Implemented Yet!');
+  } else {
+    throw Error('Invalid Environment!');
+  }
+  const client = new google.auth.OAuth2({
+    client_id: client_id,
+    client_secret: client_secret,
+    redirect_uris: redirect_uris,
+  });
+  return client;
+}
+
 export async function getGmailOauthLink(
   environment: Environment,
   identifier: string,
   redirectAfterAuth: string,
 ) {
-  if (environment.name !== 'development') {
-    // TODO: Handle production environment
-    return null;
-  }
-
   // Ensure no collision with existing state tokens
   let stateToken = '';
   while (true) {
@@ -51,11 +70,7 @@ export async function getGmailOauthLink(
     }
   }
 
-  const client = new google.auth.OAuth2({
-    client_id: process.env.GOOGLE_CLIENT_ID!,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-    redirect_uris: [`${process.env.API_URL}/v1/callback/gmail`],
-  });
+  const client = getGoogleClient(environment.name);
 
   const authUrl = client.generateAuthUrl({
     access_type: 'offline',
@@ -97,16 +112,7 @@ export async function handleGmailCallback(
     return response.status(401).send({ error: 'Invalid environment' });
   }
 
-  if (environment.name !== 'development') {
-    // TODO: Handle production environment
-    return response.status(401).send({ error: 'Invalid environment' });
-  }
-
-  const client = new google.auth.OAuth2({
-    client_id: process.env.GOOGLE_CLIENT_ID!,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-    redirect_uris: [`${process.env.API_URL}/v1/callback/gmail`],
-  });
+  const client = getGoogleClient(environment.name);
 
   const tokenResponse = await client.getToken(code);
 
@@ -163,11 +169,17 @@ export async function getGmailMessages(
     throw new Error('No Gmail OAuth connection found. Connect Gmail first.');
   }
 
-  const client = new google.auth.OAuth2({
-    client_id: process.env.GOOGLE_CLIENT_ID!,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-    redirect_uris: [`${process.env.API_URL}/v1/callback/gmail`],
-  });
+  const environment = await db
+    .select({ name: environments.name })
+    .from(environments)
+    .where(eq(environments.id, environmentId))
+    .then((val) => val.at(0) ?? null);
+
+  if (!environment) {
+    throw Error('Environment not found!');
+  }
+
+  const client = getGoogleClient(environment.name);
 
   client.setCredentials({
     access_token: oauthConnection.accessToken,
@@ -197,6 +209,7 @@ export async function getGmailMessages(
 
   return messages.map((msg) => gmailToGeneric(msg, identifier, environmentId));
 }
+
 export async function getGmailMessageById(
   identifier: string,
   environmentId: string,
@@ -222,11 +235,17 @@ export async function getGmailMessageById(
     throw err;
   }
 
-  const client = new google.auth.OAuth2({
-    client_id: process.env.GOOGLE_CLIENT_ID!,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-    redirect_uris: [`${process.env.API_URL}/v1/callback/gmail`],
-  });
+  const environment = await db
+    .select({ name: environments.name })
+    .from(environments)
+    .where(eq(environments.id, environmentId))
+    .then((val) => val.at(0) ?? null);
+
+  if (!environment) {
+    throw Error('Environment not found!');
+  }
+
+  const client = getGoogleClient(environment.name);
 
   client.setCredentials({
     access_token: oauthConnection.accessToken ?? undefined,
@@ -417,6 +436,7 @@ function gmailToGeneric(
 export async function sendGmailEmail(
   identifier: string,
   environmentId: string,
+  environmentName: string,
   email: SendEmail,
 ) {
   const oauthConnection = await db
@@ -435,11 +455,7 @@ export async function sendGmailEmail(
     throw new Error('No Gmail OAuth connection found. Connect Gmail first.');
   }
 
-  const client = new google.auth.OAuth2({
-    client_id: process.env.GOOGLE_CLIENT_ID!,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-    redirect_uris: [`${process.env.API_URL}/v1/callback/gmail`],
-  });
+  const client = getGoogleClient(environmentName);
 
   client.setCredentials({
     access_token: oauthConnection.accessToken,

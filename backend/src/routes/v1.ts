@@ -165,6 +165,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
       identifier,
       providerCode,
       limit = 10,
+      // TODO: Implement offset and search
       offset = 0,
       search = '',
     } = request.query as {
@@ -183,7 +184,11 @@ export default async function v1Routes(fastify: FastifyInstance) {
 
     // Check whether the publishable and secret key are valid and get the oauth connection
     const connection = await db
-      .select()
+      .select({
+        connections: {
+          environmentId: connections.environmentId,
+        },
+      })
       .from(connections)
       .innerJoin(environments, eq(connections.environmentId, environments.id))
       .where(
@@ -311,6 +316,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
           const message = await getOutlookMessageById(
             identifier,
             environmentId,
+            environment.name,
             providerId,
           );
           return response.status(200).send({ message });
@@ -377,12 +383,18 @@ export default async function v1Routes(fastify: FastifyInstance) {
     let result = '';
     switch (query.providerCode) {
       case 'gmail':
-        result = await sendGmailEmail(query.identifier, environment.id, email);
+        result = await sendGmailEmail(
+          query.identifier,
+          environment.id,
+          environment.name,
+          email,
+        );
         return response.status(200).send({ emailId: result });
       case 'outlook':
         result = await sendOutlookEmail(
           query.identifier,
           environment.id,
+          environment.name,
           email,
         );
         return response.status(200).send({ emailId: result });
@@ -390,6 +402,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
         result = await sendSMTPIMAPEmail(
           query.identifier,
           environment.id,
+          environment.name,
           email,
         );
         return response.status(200).send({ emailId: result });

@@ -50,11 +50,6 @@ export async function getOutlookOAuthLink(
   identifier: string,
   redirectAfterAuth: string,
 ) {
-  if (environment.name !== 'development') {
-    // TODO: Handle production environment
-    return null;
-  }
-
   // Ensure no collision with existing state tokens
   let stateToken = '';
   while (true) {
@@ -78,6 +73,13 @@ export async function getOutlookOAuthLink(
     if (result === 'OK') {
       break;
     }
+  }
+
+  if (environment.name == 'production') {
+    // TODO: Handle production environment
+    throw Error('Not Implemented Yet!');
+  } else if (environment.name !== 'development') {
+    return null;
   }
 
   const pca = createMsalClient(identifier, environment.id);
@@ -120,13 +122,23 @@ export async function handleOutlookCallback(
     return response.status(401).send({ error: 'Invalid environment' });
   }
 
-  if (environment.name !== 'development') {
+  let client_id: string | undefined = undefined;
+  let client_secret: string | undefined = undefined;
+
+  if (environment.name == 'production') {
     // TODO: Handle production environment
+    throw Error('Not implemented yet!');
+  } else if (environment.name != 'development') {
     return response.status(401).send({ error: 'Invalid environment' });
   }
 
   try {
-    const pca = createMsalClient(stateToken.identifier, environment.id);
+    const pca = createMsalClient(
+      stateToken.identifier,
+      environment.id,
+      client_id,
+      client_secret,
+    );
 
     const tokenResponse = await pca.acquireTokenByCode({
       code: code,
@@ -166,8 +178,15 @@ export async function handleOutlookCallback(
 async function getOutlookAccessToken(
   identifier: string,
   environmentId: string,
+  client_id?: string,
+  client_secret?: string,
 ): Promise<string | null> {
-  const pca = createMsalClient(identifier, environmentId);
+  const pca = createMsalClient(
+    identifier,
+    environmentId,
+    client_id,
+    client_secret,
+  );
 
   const tokenCache = pca.getTokenCache();
   // Ensure cache is hydrated from Redis for this identifier
@@ -191,17 +210,45 @@ async function getOutlookAccessToken(
   }
 }
 
+async function getAccessToken(
+  environmentName: string,
+  identifier: string,
+  environmentId: string,
+) {
+  let accessToken: string | null = null;
+  if (environmentName == 'development') {
+    accessToken = await getOutlookAccessToken(identifier, environmentId);
+  } else if (environmentName == 'production') {
+    // TODO: Implement this
+  }
+  if (!accessToken) {
+    const err: any = new Error(
+      'No Outlook access token available. Connect Outlook first.',
+    );
+    err.statusCode = 401;
+    throw err;
+  }
+  return accessToken;
+}
+
 export async function getOutlookMessages(
   identifier: string,
   environmentId: string,
   limit: number = 10,
 ) {
-  const accessToken = await getOutlookAccessToken(identifier, environmentId);
-  if (!accessToken) {
-    throw new Error(
-      'No Outlook access token available. Connect Outlook first.',
-    );
+  const environment = await db
+    .select({ name: environments.name })
+    .from(environments)
+    .where(eq(environments.id, environmentId))
+    .then((value) => value.at(0) ?? null);
+  if (!environment) {
+    throw Error('Environment not found!');
   }
+  const accessToken = await getAccessToken(
+    environment.name,
+    identifier,
+    environmentId,
+  );
 
   const graphClient = getGraphClient(accessToken);
 
@@ -226,16 +273,14 @@ export async function getOutlookMessages(
 export async function getOutlookMessageById(
   identifier: string,
   environmentId: string,
+  environmentName: string,
   providerId: string,
 ) {
-  const accessToken = await getOutlookAccessToken(identifier, environmentId);
-  if (!accessToken) {
-    const err: any = new Error(
-      'No Outlook access token available. Connect Outlook first.',
-    );
-    err.statusCode = 401;
-    throw err;
-  }
+  const accessToken = await getAccessToken(
+    environmentName,
+    identifier,
+    environmentId,
+  );
 
   const graphClient = getGraphClient(accessToken);
 
@@ -307,17 +352,14 @@ function outlookToGeneric(
 export async function sendOutlookEmail(
   identifier: string,
   environmentId: string,
+  environmentName: string,
   email: SendEmail,
 ) {
-  const accessToken = await getOutlookAccessToken(identifier, environmentId);
-  if (!accessToken) {
-    const err: any = new Error(
-      'No Outlook access token available. Connect Outlook first.',
-    );
-    err.statusCode = 401;
-    throw err;
-  }
-
+  const accessToken = await getAccessToken(
+    environmentName,
+    identifier,
+    environmentId,
+  );
   const client = getGraphClient(accessToken);
 
   const message: any = {
