@@ -1,14 +1,9 @@
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHash,
-  randomBytes,
-} from "crypto";
+import { createCipheriv, createDecipheriv, createHash } from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
 
 export function encrypt(text: string, secretKey: string) {
-  const iv = randomBytes(16);
+  const iv = Buffer.alloc(16);
   const key = createHash("sha256").update(secretKey).digest();
   const cipher = createCipheriv(ALGORITHM, key, iv);
 

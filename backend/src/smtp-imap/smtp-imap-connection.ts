@@ -122,6 +122,15 @@ export async function getSMTPIMAPMessageById(
   environmentId: string,
   providerId: string,
 ): Promise<EmailMessage> {
+  console.log(`Provider Code: ${providerId}`);
+
+  const providerJson = JSON.parse(
+    decrypt(providerId, process.env.ID_CREATION_SECRET!),
+  ) as {
+    type: 'uid' | 'message-id';
+    value: string;
+  };
+
   const connection = await db
     .select()
     .from(connections)
@@ -157,11 +166,21 @@ export async function getSMTPIMAPMessageById(
   await client.openBox('INBOX');
 
   // Search for the message by Message-ID header
-  const searchCriteria = [['HEADER', 'Message-ID', providerId]];
+  let searchCriteria: Array<[string, string] | [string, string, string]>;
   const fetchOptions = {
-    bodies: ['HEADER', 'TEXT'],
+    bodies: [''],
     struct: true,
   };
+
+  if (providerJson.type === 'message-id') {
+    searchCriteria = [['HEADER', 'Message-ID', providerJson.value]];
+  } else if (providerJson.type === 'uid') {
+    // For searching by UID, the imap library typically expects ['UID', 'number']
+    searchCriteria = [['UID', providerJson.value]];
+  } else {
+    // Handle unexpected types, though your 'as' assertion might prevent this at runtime
+    throw new Error(`Unsupported provider ID type: ${providerJson.type}`);
+  }
 
   const result = await client
     .search(searchCriteria, fetchOptions)
@@ -184,7 +203,10 @@ async function smtpImapToGeneric(
       ?.body,
   );
 
-  let providerId = {
+  let providerId: {
+    type: 'uid' | 'message-id';
+    value: string;
+  } = {
     type: 'uid',
     value: message.attributes.uid.toString(),
   };
