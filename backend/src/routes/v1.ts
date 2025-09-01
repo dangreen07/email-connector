@@ -96,7 +96,10 @@ export default async function v1Routes(fastify: FastifyInstance) {
       return response.status(401).send({ error: 'Provider not enabled' });
     }
 
-    if (environment.name === 'development') {
+    if (
+      environment.name === 'development' ||
+      environment.name === 'production'
+    ) {
       let authUrl: string | null = null;
       // Use our own credentials
       switch (providerCode) {
@@ -145,8 +148,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
         default:
           return response.status(401).send({ error: 'Invalid provider code' });
       }
-    } else if (environment.name == 'production') {
-      // TODO: Handle production environment
     } else {
       throw Error('Invalid Environment!');
     }

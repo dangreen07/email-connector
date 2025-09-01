@@ -80,14 +80,45 @@ export async function getOutlookOAuthLink(
     }
   }
 
+  let client_id: string | undefined = undefined;
+  let client_secret: string | undefined = undefined;
   if (environment.name == 'production') {
-    // TODO: Handle production environment
-    throw Error('Not Implemented Yet!');
+    const connectedProvider = await db
+      .select()
+      .from(connectedProviders)
+      .where(
+        and(
+          eq(connectedProviders.providerCode, 'outlook'),
+          eq(connectedProviders.environmentId, environment.id),
+          eq(connectedProviders.enabled, true),
+        ),
+      )
+      .then((val) => val.at(0) ?? null);
+    if (!connectedProvider) {
+      throw Error('Provider not enabled or does not exist for production!');
+    }
+    const encryptedCredentials = connectedProvider.credentials;
+    if (!encryptedCredentials) {
+      throw Error('Production provider requires credentials to be set!');
+    }
+    const credentials = JSON.parse(
+      decrypt(encryptedCredentials, process.env.CRED_ENCRYPTION_KEY!),
+    ) as {
+      clientId: string;
+      clientSecret: string;
+    };
+    client_id = credentials.clientId;
+    client_secret = credentials.clientSecret;
   } else if (environment.name !== 'development') {
-    return null;
+    throw Error('Invalid environment name!');
   }
 
-  const pca = createMsalClient(identifier, environment.id);
+  const pca = createMsalClient(
+    identifier,
+    environment.id,
+    client_id,
+    client_secret,
+  );
 
   const authUrl = await pca.getAuthCodeUrl({
     scopes,
@@ -131,8 +162,32 @@ export async function handleOutlookCallback(
   let client_secret: string | undefined = undefined;
 
   if (environment.name == 'production') {
-    // TODO: Handle production environment
-    throw Error('Not implemented yet!');
+    const connectedProvider = await db
+      .select()
+      .from(connectedProviders)
+      .where(
+        and(
+          eq(connectedProviders.providerCode, 'outlook'),
+          eq(connectedProviders.environmentId, environment.id),
+          eq(connectedProviders.enabled, true),
+        ),
+      )
+      .then((val) => val.at(0) ?? null);
+    if (!connectedProvider) {
+      throw Error('Provider not enabled or does not exist for production!');
+    }
+    const encryptedCredentials = connectedProvider.credentials;
+    if (!encryptedCredentials) {
+      throw Error('Production provider requires credentials to be set!');
+    }
+    const credentials = JSON.parse(
+      decrypt(encryptedCredentials, process.env.CRED_ENCRYPTION_KEY!),
+    ) as {
+      clientId: string;
+      clientSecret: string;
+    };
+    client_id = credentials.clientId;
+    client_secret = credentials.clientSecret;
   } else if (environment.name != 'development') {
     return response.status(401).send({ error: 'Invalid environment' });
   }
