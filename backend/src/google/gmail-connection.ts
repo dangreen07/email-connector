@@ -1,11 +1,16 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { Environment, environments, connections } from '../db/schema';
+import {
+  Environment,
+  environments,
+  connections,
+  connectedProviders,
+} from '../db/schema';
 import redis from '../redis';
 import { strToEmailAddress } from '../utils';
 import db from '../db';
 import { and, eq, sql } from 'drizzle-orm';
 import { gmail_v1, google } from 'googleapis';
-import { encrypt } from '../encryption';
+import { decrypt, encrypt } from '../encryption';
 import {
   Attachment,
   EmailAddress,
@@ -16,7 +21,7 @@ import {
 } from '../utils/types';
 import { buildRawEmail } from './send-formatting';
 
-function getGoogleClient(environmentName: string) {
+async function getGoogleClient(environmentName: string, environmentId: string) {
   let client_id = '';
   let client_secret = '';
   // For now just use the current API for callbacks
@@ -27,8 +32,31 @@ function getGoogleClient(environmentName: string) {
       client_secret = process.env.GOOGLE_CLIENT_SECRET;
     }
   } else if (environmentName == 'production') {
-    // TODO: Implement this
-    throw Error('Not Implemented Yet!');
+    const provider = await db
+      .select()
+      .from(connectedProviders)
+      .where(
+        and(
+          eq(connectedProviders.environmentId, environmentId),
+          eq(connectedProviders.enabled, true),
+        ),
+      )
+      .then((val) => val.at(0) ?? null);
+    if (!provider) {
+      throw Error('Provider not found!');
+    }
+    const encryptedCredentials = provider.credentials;
+    if (!encryptedCredentials) {
+      throw Error('Credentials required for production providers!');
+    }
+    const credentials = JSON.parse(
+      decrypt(encryptedCredentials, process.env.CRED_ENCRYPTION_KEY!),
+    ) as {
+      clientId: string;
+      clientSecret: string;
+    };
+    client_id = credentials.clientId;
+    client_secret = credentials.clientSecret;
   } else {
     throw Error('Invalid Environment!');
   }
@@ -70,7 +98,7 @@ export async function getGmailOauthLink(
     }
   }
 
-  const client = getGoogleClient(environment.name);
+  const client = await getGoogleClient(environment.name, environment.id);
 
   const authUrl = client.generateAuthUrl({
     access_type: 'offline',
@@ -112,7 +140,7 @@ export async function handleGmailCallback(
     return response.status(401).send({ error: 'Invalid environment' });
   }
 
-  const client = getGoogleClient(environment.name);
+  const client = await getGoogleClient(environment.name, environment.id);
 
   const tokenResponse = await client.getToken(code);
 
@@ -179,7 +207,7 @@ export async function getGmailMessages(
     throw Error('Environment not found!');
   }
 
-  const client = getGoogleClient(environment.name);
+  const client = await getGoogleClient(environment.name, environmentId);
 
   client.setCredentials({
     access_token: oauthConnection.accessToken,
@@ -245,7 +273,7 @@ export async function getGmailMessageById(
     throw Error('Environment not found!');
   }
 
-  const client = getGoogleClient(environment.name);
+  const client = await getGoogleClient(environment.name, environmentId);
 
   client.setCredentials({
     access_token: oauthConnection.accessToken ?? undefined,
@@ -455,7 +483,7 @@ export async function sendGmailEmail(
     throw new Error('No Gmail OAuth connection found. Connect Gmail first.');
   }
 
-  const client = getGoogleClient(environmentName);
+  const client = await getGoogleClient(environmentName, environmentId);
 
   client.setCredentials({
     access_token: oauthConnection.accessToken,

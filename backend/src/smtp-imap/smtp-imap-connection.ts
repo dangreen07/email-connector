@@ -328,7 +328,6 @@ async function smtpImapToGeneric(
 export async function sendSMTPIMAPEmail(
   identifier: string,
   environmentId: string,
-  environmentName: string,
   email: SendEmail,
 ) {
   const connection = await db

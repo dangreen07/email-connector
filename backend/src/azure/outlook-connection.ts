@@ -1,12 +1,17 @@
 import { ConfidentialClientApplication, Configuration } from '@azure/msal-node';
-import { Environment, environments, connections } from '../db/schema';
+import {
+  Environment,
+  environments,
+  connections,
+  connectedProviders,
+} from '../db/schema';
 import db from '../db';
 import { and, eq } from 'drizzle-orm';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { createRedisCachePlugin, hydrateTokenCache } from '../redisCachePlugin';
 import redis from '../redis';
 import { getGraphClient } from './GraphAPI';
-import { encrypt } from '../encryption';
+import { decrypt, encrypt } from '../encryption';
 import {
   EmailMessage,
   IDPayload,
@@ -219,7 +224,41 @@ async function getAccessToken(
   if (environmentName == 'development') {
     accessToken = await getOutlookAccessToken(identifier, environmentId);
   } else if (environmentName == 'production') {
-    // TODO: Implement this
+    const connectedProvider = await db
+      .select()
+      .from(connectedProviders)
+      .where(
+        and(
+          eq(connectedProviders.environmentId, environmentId),
+          eq(connectedProviders.providerCode, 'outlook'),
+          eq(connectedProviders.enabled, true),
+        ),
+      )
+      .then((val) => val.at(0) ?? null);
+
+    if (!connectedProvider) {
+      throw Error('Cannot find Enabled Connected Provider!');
+    }
+
+    const encryptedCredentials = connectedProvider.credentials;
+    if (!encryptedCredentials) {
+      throw Error(
+        'Provider Requires Credentials Configured in Production Mode!',
+      );
+    }
+    const credentials = JSON.parse(
+      decrypt(encryptedCredentials, process.env.CRED_ENCRYPTION_KEY!),
+    ) as {
+      clientId: string;
+      clientSecret: string;
+    };
+
+    accessToken = await getOutlookAccessToken(
+      identifier,
+      environmentId,
+      credentials.clientId,
+      credentials.clientSecret,
+    );
   }
   if (!accessToken) {
     const err: any = new Error(

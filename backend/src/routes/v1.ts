@@ -145,8 +145,10 @@ export default async function v1Routes(fastify: FastifyInstance) {
         default:
           return response.status(401).send({ error: 'Invalid provider code' });
       }
-    } else {
+    } else if (environment.name == 'production') {
       // TODO: Handle production environment
+    } else {
+      throw Error('Invalid Environment!');
     }
   });
 
@@ -402,7 +404,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
         result = await sendSMTPIMAPEmail(
           query.identifier,
           environment.id,
-          environment.name,
           email,
         );
         return response.status(200).send({ emailId: result });
