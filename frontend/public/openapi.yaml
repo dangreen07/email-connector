@@ -5,7 +5,7 @@ info:
   description: >
     Unified email connection and messaging API for Outlook, Gmail, and SMTP/IMAP.
 servers:
-  - url: http://localhost:8080
+  - url: https://api.maillink.co
 
 tags:
   - name: Connections

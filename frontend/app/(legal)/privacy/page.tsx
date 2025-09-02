@@ -1,8 +1,8 @@
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default async function Privacy() {
-    const input = `
+  const input = `
 ## **MailLink Privacy Policy**
 
 **Effective Date:** August 15, 2025  
@@ -67,7 +67,7 @@ Depending on your location, you may have rights under GDPR, CCPA, or other laws,
 - Requesting corrections or deletion.  
 - Opting out of certain data uses.  
 
-To exercise these rights, contact us at **privacy@maillink.com**.
+To exercise these rights, contact us at **daniel@maillink.co**.
 
 ---
 
@@ -85,10 +85,10 @@ You can control cookies through your browser settings.
 ### 7. Third-Party Services
 
 Our service integrates with:  
-- **Stripe** – [Stripe Privacy Policy](https://stripe.com/privacy)  
-- **Clerk** – [Clerk Privacy Policy](https://clerk.com/privacy)  
-- **Vercel** – [Vercel Privacy Policy](https://vercel.com/legal/privacy-policy)  
-- **Neon** – [Neon Privacy Policy](https://neon.tech/privacy-policy)  
+- **Stripe** - [Stripe Privacy Policy](https://stripe.com/privacy)  
+- **Clerk** - [Clerk Privacy Policy](https://clerk.com/privacy)  
+- **Vercel** - [Vercel Privacy Policy](https://vercel.com/legal/privacy-policy)  
+- **Neon** - [Neon Privacy Policy](https://neon.tech/privacy-policy)  
 
 These providers have their own privacy practices.
 
@@ -103,13 +103,12 @@ We may update this Privacy Policy from time to time. Changes will be posted on t
 ### 9. Contact Us
 
 If you have questions about this Privacy Policy, contact us at:  
-**Email:** privacy@maillink.com  
+**Email:** daniel@maillink.co  
 `.trim();
 
-
-    return (
-        <article className="prose prose-lg dark:prose-invert max-w-none py-4">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{input}</ReactMarkdown>
-        </article>
-    )
+  return (
+    <article className="prose prose-lg dark:prose-invert max-w-none py-4">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{input}</ReactMarkdown>
+    </article>
+  );
 }

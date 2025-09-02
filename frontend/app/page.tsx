@@ -10,10 +10,15 @@ export default function Home() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_60%_at_50%_0%,rgb(99_102_241/0.15),transparent_60%)]"></div>
         <Container className="pt-20 pb-16 sm:pt-24 sm:pb-24">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-indigo-500">Developer-first email connectivity</p>
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">One API for Every Inbox</h1>
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-indigo-500">
+              Developer-first email connectivity
+            </p>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+              One API for Every Inbox
+            </h1>
             <p className="mt-4 text-lg text-foreground/80">
-              Connect Gmail, Outlook, and IMAP in minutes - no OAuth headaches or vendor lock-in.
+              Connect Gmail, Outlook, and IMAP in minutes - no OAuth headaches
+              or vendor lock-in.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
@@ -36,13 +41,6 @@ export default function Home() {
               <OutlookIcon className="h-6 w-6" />
               <ImapIcon className="h-6 w-6" />
             </div>
-
-            {/* Code snippet */}
-            <div className="mt-10 rounded-xl border border-foreground/10 bg-foreground/5 p-4 text-left">
-              <pre className="text-sm leading-6 text-foreground/90 overflow-x-auto"><code>{`import { ConnectInbox } from "maillink-react";
-
-<ConnectInbox />`}</code></pre>
-            </div>
           </div>
         </Container>
       </section>
@@ -51,19 +49,33 @@ export default function Home() {
       <section className="py-16 sm:py-24">
         <Container>
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Everything you need to integrate email fast</h2>
-            <p className="mt-3 text-foreground/80">Unified endpoints, webhooks, secure tokens, and a great developer experience.</p>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Everything you need to integrate email fast
+            </h2>
+            <p className="mt-3 text-foreground/80">
+              Unified endpoints, webhooks, secure tokens, and a great developer
+              experience.
+            </p>
           </div>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { title: "Unified API", desc: "One endpoint for all providers." },
-              { title: "Fast Setup", desc: "Connect an inbox in under 5 minutes." },
+              {
+                title: "Fast Setup",
+                desc: "Connect an inbox in under 5 minutes.",
+              },
               { title: "Simple Pricing", desc: "No hidden fees, flat rate." },
               { title: "Webhooks", desc: "React to new mail instantly." },
-              { title: "Secure by default", desc: "OAuth tokens encrypted at rest." },
+              {
+                title: "Secure by default",
+                desc: "OAuth tokens encrypted at rest.",
+              },
               { title: "Great DX", desc: "Copy-paste snippets, sandbox keys." },
             ].map((f) => (
-              <div key={f.title} className="rounded-xl border border-foreground/10 bg-background p-6">
+              <div
+                key={f.title}
+                className="rounded-xl border border-foreground/10 bg-background p-6"
+              >
                 <h3 className="text-base font-semibold">{f.title}</h3>
                 <p className="mt-2 text-sm text-foreground/80">{f.desc}</p>
               </div>
@@ -76,16 +88,35 @@ export default function Home() {
       <section className="py-16 sm:py-24">
         <Container>
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">How it works</h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              How it works
+            </h2>
           </div>
           <ol className="mt-10 grid gap-6 sm:grid-cols-3">
             {[
-              { step: 1, title: "Add our Connect button", desc: "Drop-in UI to connect inboxes." },
-              { step: 2, title: "User authenticates", desc: "Google/Microsoft or IMAP in one flow." },
-              { step: 3, title: "Call /messages and /send", desc: "Use a single token for all operations." },
+              {
+                step: 1,
+                title: "Add our Connect button",
+                desc: "Drop-in UI to connect inboxes.",
+              },
+              {
+                step: 2,
+                title: "User authenticates",
+                desc: "Google/Microsoft or IMAP in one flow.",
+              },
+              {
+                step: 3,
+                title: "Call /messages and /send",
+                desc: "Use a single token for all operations.",
+              },
             ].map((s) => (
-              <li key={s.step} className="rounded-xl border border-foreground/10 bg-background p-6">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white text-sm font-semibold">{s.step}</span>
+              <li
+                key={s.step}
+                className="rounded-xl border border-foreground/10 bg-background p-6"
+              >
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white text-sm font-semibold">
+                  {s.step}
+                </span>
                 <h3 className="mt-3 text-base font-semibold">{s.title}</h3>
                 <p className="mt-2 text-sm text-foreground/80">{s.desc}</p>
               </li>
@@ -98,8 +129,13 @@ export default function Home() {
       <section id="pricing" className="py-16 sm:py-24">
         <Container>
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Simple, usage-based pricing</h2>
-            <p className="mt-3 text-foreground/80">No per-email fees. Pay for aggregated API usage. Generous free tier for development.</p>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Simple, usage-based pricing
+            </h2>
+            <p className="mt-3 text-foreground/80">
+              No per-email fees. Pay for aggregated API usage. Generous free
+              tier for development.
+            </p>
           </div>
 
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -163,7 +199,11 @@ export default function Home() {
             ].map((tier) => (
               <div
                 key={tier.name}
-                className={`relative rounded-2xl border ${tier.highlighted ? "border-indigo-300/40 bg-[radial-gradient(60%_80%_at_50%_-20%,rgb(99_102_241/0.10),transparent_60%)]" : "border-foreground/10 bg-background"} p-6 flex h-full flex-col`}
+                className={`relative rounded-2xl border ${
+                  tier.highlighted
+                    ? "border-indigo-300/40 bg-[radial-gradient(60%_80%_at_50%_-20%,rgb(99_102_241/0.10),transparent_60%)]"
+                    : "border-foreground/10 bg-background"
+                } p-6 flex h-full flex-col`}
               >
                 {tier.highlighted && (
                   <div className="absolute -top-3 right-4 rounded-full bg-indigo-600 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
@@ -173,14 +213,26 @@ export default function Home() {
                 <h3 className="text-base font-semibold">{tier.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
                   <span className="text-3xl font-bold">{tier.price}</span>
-                  {tier.period && <span className="text-sm text-foreground/70">{tier.period}</span>}
+                  {tier.period && (
+                    <span className="text-sm text-foreground/70">
+                      {tier.period}
+                    </span>
+                  )}
                 </div>
-                <p className="mt-2 text-sm text-foreground/80">{tier.description}</p>
+                <p className="mt-2 text-sm text-foreground/80">
+                  {tier.description}
+                </p>
                 <ul className="mt-4 space-y-2 text-sm text-foreground/80">
                   {tier.features.map((f) => (
                     <li key={f} className="flex items-start gap-2">
                       <span className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-foreground/20 text-foreground/70 inline-flex items-center justify-center">
-                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg
+                          className="h-3 w-3"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
                           <path d="M20 6L9 17l-5-5" />
                         </svg>
                       </span>
@@ -189,7 +241,14 @@ export default function Home() {
                   ))}
                 </ul>
                 <div className="mt-auto pt-6">
-                  <Link href={tier.href} className={`inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500 ${tier.highlighted ? "bg-indigo-600 text-white hover:bg-indigo-500" : "border border-foreground/20 text-foreground/90 hover:border-foreground/40"}`}>
+                  <Link
+                    href={tier.href}
+                    className={`inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500 ${
+                      tier.highlighted
+                        ? "bg-indigo-600 text-white hover:bg-indigo-500"
+                        : "border border-foreground/20 text-foreground/90 hover:border-foreground/40"
+                    }`}
+                  >
                     {tier.cta}
                   </Link>
                 </div>
@@ -198,7 +257,10 @@ export default function Home() {
           </div>
 
           <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-foreground/70">
-            Pricing is optimized for development productivity. Requests are counted per API call (e.g., auth, list messages, send), not per email. All plans include unlimited connected accounts and support for Gmail, Outlook/Microsoft 365, and any IMAP/SMTP provider.
+            Pricing is optimized for development productivity. Requests are
+            counted per API call (e.g., auth, list messages, send), not per
+            email. All plans include unlimited connected accounts and support
+            for Gmail, Outlook/Microsoft 365, and any IMAP/SMTP provider.
           </p>
         </Container>
       </section>
@@ -207,9 +269,16 @@ export default function Home() {
       <section className="py-16 sm:py-24">
         <Container>
           <div className="mx-auto max-w-2xl text-center rounded-2xl border border-foreground/10 bg-[radial-gradient(60%_80%_at_50%_-20%,rgb(99_102_241/0.15),transparent_60%)] p-10">
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Ready to simplify email integration?</h2>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Ready to simplify email integration?
+            </h2>
             <div className="mt-6 flex items-center justify-center gap-3">
-              <Link href="/sign-up" className="rounded-md bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500">Get Started</Link>
+              <Link
+                href="/sign-up"
+                className="rounded-md bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500"
+              >
+                Get Started
+              </Link>
             </div>
           </div>
         </Container>
@@ -219,29 +288,56 @@ export default function Home() {
       <section className="py-16 sm:py-24">
         <Container>
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">FAQs</h2>
-            <p className="mt-3 text-foreground/80">Answers to common questions.</p>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              FAQs
+            </h2>
+            <p className="mt-3 text-foreground/80">
+              Answers to common questions.
+            </p>
           </div>
           <div className="mx-auto mt-10 max-w-3xl divide-y divide-foreground/10 rounded-xl border border-foreground/10">
             {[
-              { q: "Which providers are supported?", a: "Gmail, Outlook, and any IMAP provider." },
-              { q: "How do you handle security?", a: "OAuth tokens are encrypted at rest; we follow best practices." },
-              { q: "Do you have webhooks?", a: "Yes, subscribe to new messages, send status, and more." },
-              { q: "What is pricing?", a: "Simple flat-rate pricing with a generous free tier." },
-              { q: "Is there a sandbox?", a: "Yes, use sandbox keys to develop safely." },
+              {
+                q: "Which providers are supported?",
+                a: "Gmail, Outlook, and any IMAP provider.",
+              },
+              {
+                q: "How do you handle security?",
+                a: "OAuth tokens are encrypted at rest; we follow best practices.",
+              },
+              {
+                q: "Do you have webhooks?",
+                a: "Yes, subscribe to new messages, send status, and more.",
+              },
+              {
+                q: "What is pricing?",
+                a: "Simple flat-rate pricing with a generous free tier.",
+              },
+              {
+                q: "Is there a sandbox?",
+                a: "Yes, use sandbox keys to develop safely.",
+              },
             ].map((item, idx) => (
               <details key={idx} className="group">
                 <summary className="cursor-pointer list-none px-6 py-4 text-left font-medium hover:bg-foreground/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
                   <div className="flex items-center justify-between">
                     <span>{item.q}</span>
                     <span className="ml-4 h-5 w-5 rounded-full border border-foreground/20 text-foreground/70 inline-flex items-center justify-center">
-                      <svg className="h-3 w-3 transition-transform group-open:rotate-45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg
+                        className="h-3 w-3 transition-transform group-open:rotate-45"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
                         <path d="M12 5v14M5 12h14" />
                       </svg>
                     </span>
                   </div>
                 </summary>
-                <div className="px-6 pb-4 text-sm text-foreground/80">{item.a}</div>
+                <div className="px-6 pb-4 text-sm text-foreground/80">
+                  {item.a}
+                </div>
               </details>
             ))}
           </div>

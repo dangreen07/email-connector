@@ -2,7 +2,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 export default async function Terms() {
-    const input = `
+  const input = `
 ## **MailLink Terms of Service**
 
 **Effective Date:** August 15, 2025  
@@ -22,7 +22,7 @@ By using MailLink, you confirm that you meet these requirements.
 - You must create an account to use certain features.  
 - Account creation and authentication are handled by **Clerk**.  
 - You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account.  
-- Notify us immediately at **support@maillink.com** if you suspect unauthorised use.
+- Notify us immediately at **daniel@maillink.co** if you suspect unauthorised use.
 
 ---
 
@@ -45,7 +45,7 @@ You agree not to:
 
 ### 5. Data & Privacy
 - Your data is stored on **Vercel** (hosting), **Neon** (database), and processed by **Clerk** (authentication) and **Stripe** (payments).  
-- Our use of your data is governed by our [Privacy Policy](https://maillink.com/privacy).  
+- Our use of your data is governed by our [Privacy Policy](/privacy).  
 - By using our Services, you consent to the collection and use of your data as described in the Privacy Policy, in compliance with the **UK GDPR** and **Data Protection Act 2018**.
 
 ---
@@ -88,12 +88,12 @@ These Terms are governed by the laws of **England and Wales**, without regard to
 
 ### 13. Contact Us
 If you have questions about these Terms, contact us at:  
-**Email:** support@maillink.com  
+**Email:** daniel@maillink.co
 `.trim();
 
-    return (
-        <article className="prose prose-lg dark:prose-invert max-w-none py-4">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{input}</ReactMarkdown>
-        </article>
-    )
+  return (
+    <article className="prose prose-lg dark:prose-invert max-w-none py-4">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{input}</ReactMarkdown>
+    </article>
+  );
 }
