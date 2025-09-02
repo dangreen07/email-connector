@@ -1,0 +1,526 @@
+openapi: 3.1.1
+info:
+  title: MailLink API
+  version: 1.0.0
+  description: >
+    Unified email connection and messaging API for Outlook, Gmail, and SMTP/IMAP.
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Connections
+    description: Operations to initiate and manage provider connections (Outlook, Gmail, SMTP/IMAP). Requires a publishable key.
+  - name: Messages
+    description: Operations to list, retrieve, and send emails via connected accounts. Requires a secret key.
+  - name: Callbacks
+    description: OAuth 2.0 callback endpoints for Outlook and Gmail to complete authorization; no authentication required.
+
+paths:
+  /connection:
+    post:
+      tags:
+        - Connections
+      summary: Create a provider connection
+      description: >
+        Starts an OAuth connection (Gmail/Outlook) or directly connects via
+        SMTP/IMAP. Requires a publishable key in the Authorization header.
+      operationId: createConnection
+      security:
+        - PublishableKeyAuth: []
+      parameters:
+        - name: providerCode
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [outlook, gmail, smtp-imap]
+          description: Provider to connect.
+        - name: identifier
+          in: query
+          required: true
+          schema:
+            type: string
+          description: >
+            Your app-specific identifier for the user/account being connected.
+        - name: redirectAfterAuth
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+          description: >
+            URL to redirect to after OAuth completes (URL-encoded in the request).
+      requestBody:
+        required: false
+        description: Required only when providerCode is "smtp-imap".
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SMTPIMAPCredentials"
+            examples:
+              smtpImap:
+                value:
+                  smtpServer: smtp.mail.example.com
+                  smtpPort: 465
+                  imapServer: imap.mail.example.com
+                  imapPort: 993
+                  email: user@example.com
+                  password: "••••••••"
+                  useSSL: true
+      responses:
+        "200":
+          description: Connection initiated
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      authUrl:
+                        type: string
+                        format: uri
+                        description: OAuth authorization URL (Gmail/Outlook).
+                    required: [authUrl]
+                  - type: object
+                    properties:
+                      message:
+                        type: string
+                        example: SMTP/IMAP connected successfully
+                    required: [message]
+        "400":
+          description: Bad request (e.g., missing SMTP/IMAP params)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized or provider not enabled/invalid key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error or provider auth link failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /messages:
+    get:
+      tags:
+        - Messages
+      summary: List messages
+      description: >
+        Lists messages for a connected account. Requires the secret key in the
+        Authorization header.
+      operationId: listMessages
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: identifier
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: providerCode
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [outlook, gmail, smtp-imap]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Reserved for future use.
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Reserved for future use.
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EmailMessageSummary"
+                required: [messages]
+        "401":
+          description: Unauthorized or connection not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Provider-specific error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+        - Messages
+      summary: Send an email
+      description: >
+        Sends an email via the connected provider. Requires the secret key in
+        the Authorization header.
+      operationId: sendMessage
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: identifier
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: providerCode
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [outlook, gmail, smtp-imap]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendEmail"
+            examples:
+              basic:
+                value:
+                  to: ["recipient@example.com"]
+                  subject: "Hello"
+                  text: "Just saying hi."
+      responses:
+        "200":
+          description: Email accepted for sending
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  emailId:
+                    type: string
+                required: [emailId]
+        "401":
+          description: Unauthorized or connection not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Provider is not supported or send failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /messages/by-id:
+    get:
+      tags:
+        - Messages
+      summary: Get a message by API message ID
+      description: >
+        Fetches a single message by its API message id (opaque). Requires the
+        secret key in the Authorization header.
+      operationId: getMessageById
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Opaque API message id.
+      responses:
+        "200":
+          description: Message detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: "#/components/schemas/EmailMessageDetail"
+                required: [message]
+        "400":
+          description: Invalid message id format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized or environment mismatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Provider-specific error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /callback/outlook:
+    get:
+      tags:
+        - Callbacks
+      summary: Outlook OAuth callback
+      description: >
+        OAuth 2.0 callback endpoint for Outlook. Typically redirects to the
+        `redirectAfterAuth` URL provided during connection creation.
+      operationId: outlookCallback
+      security: [] # explicitly no auth required
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to client application after successful auth
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "200":
+          description: Callback processed
+        "400":
+          description: Invalid or missing OAuth parameters
+        "500":
+          description: Server error during OAuth handling
+
+  /callback/gmail:
+    get:
+      tags:
+        - Callbacks
+      summary: Gmail OAuth callback
+      description: >
+        OAuth 2.0 callback endpoint for Gmail. Typically redirects to the
+        `redirectAfterAuth` URL provided during connection creation.
+      operationId: gmailCallback
+      security: [] # explicitly no auth required
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to client application after successful auth
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "200":
+          description: Callback processed
+        "400":
+          description: Invalid or missing OAuth parameters
+        "500":
+          description: Server error during OAuth handling
+
+components:
+  securitySchemes:
+    PublishableKeyAuth:
+      type: http
+      scheme: bearer
+      description: >
+        Use Authorization: Bearer <publishableKey> for /connection.
+    SecretKeyAuth:
+      type: http
+      scheme: bearer
+      description: >
+        Use Authorization: Bearer <secretKey> for message endpoints.
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          description: Optional provider error code.
+      required: [error]
+      additionalProperties: false
+
+    SMTPIMAPCredentials:
+      type: object
+      properties:
+        smtpServer:
+          type: string
+        smtpPort:
+          type: integer
+        imapServer:
+          type: string
+        imapPort:
+          type: integer
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        useSSL:
+          type: boolean
+          default: true
+      required:
+        - smtpServer
+        - smtpPort
+        - imapServer
+        - imapPort
+        - email
+        - password
+      additionalProperties: false
+
+    Attachment:
+      type: object
+      properties:
+        filename:
+          type: string
+        content:
+          type: string
+          description: Base64-encoded content.
+        contentType:
+          type: string
+          description: MIME type (e.g., application/pdf).
+      required: [filename, content]
+      additionalProperties: false
+
+    SendEmail:
+      type: object
+      properties:
+        to:
+          type: array
+          items:
+            type: string
+            format: email
+          minItems: 1
+        cc:
+          type: array
+          items:
+            type: string
+            format: email
+        bcc:
+          type: array
+          items:
+            type: string
+            format: email
+        from:
+          type: string
+          format: email
+        replyTo:
+          type: string
+          format: email
+        subject:
+          type: string
+        text:
+          type: string
+        html:
+          type: string
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+      required: [to, subject]
+      additionalProperties: false
+
+    EmailAddress:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+      required: [email]
+      additionalProperties: false
+
+    EmailMessageSummary:
+      type: object
+      description: >
+        Message summary. Fields are normalized across providers where possible;
+        additional provider-specific fields may be present.
+      properties:
+        id:
+          type: string
+          description: Opaque API message id (use with /messages/by-id).
+        provider:
+          type: string
+          enum: [outlook, gmail, smtp-imap]
+        providerId:
+          type: string
+          description: The provider's native message id.
+        subject:
+          type: string
+        from:
+          oneOf:
+            - $ref: "#/components/schemas/EmailAddress"
+            - type: string
+        to:
+          type: array
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/EmailAddress"
+              - type: string
+        date:
+          type: string
+          format: date-time
+        snippet:
+          type: string
+        hasAttachments:
+          type: boolean
+      required: [id, provider]
+      additionalProperties: true
+
+    EmailMessageDetail:
+      allOf:
+        - $ref: "#/components/schemas/EmailMessageSummary"
+        - type: object
+          properties:
+            text:
+              type: string
+            html:
+              type: string
+            attachments:
+              type: array
+              items:
+                $ref: "#/components/schemas/Attachment"
+          additionalProperties: true

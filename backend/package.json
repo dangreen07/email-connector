@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
+    "postbuild": "node -e \"require('fs').mkdirSync('dist/src',{recursive:true}); require('fs').copyFileSync('src/openapi.json','dist/src/openapi.json')\"",
     "start": "node dist/src/index.js",
     "dev": "nodemon src/index.ts"
   },
