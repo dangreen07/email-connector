@@ -47,6 +47,7 @@ export default function EnvironmentDashboard(props: {
     outlookClientSecret,
     gmailClientId,
     gmailClientSecret,
+    gmailTopicName,
     setChanged,
   } = useDashboardStore((state) => state);
 
@@ -57,30 +58,66 @@ export default function EnvironmentDashboard(props: {
   );
 
   const getProviderCredentials = useCallback(
-    (provider: string) =>
-      providers.find((p) => p.providerCode === provider)?.credentials,
+    (provider: "gmail" | "outlook") => {
+      const found = providers.find((p) => p.providerCode == provider);
+      if (!found || found.providerCode == "smtp-imap") {
+        return null;
+      } else if (found.providerCode == "gmail") {
+        return {
+          type: "gmail" as const,
+          credentials: found.credentials,
+        };
+      } else {
+        return {
+          type: "outlook" as const,
+          credentials: found.credentials,
+        };
+      }
+    },
     [providers]
   );
 
   useEffect(() => {
-    const gmailCredentials = getProviderCredentials("gmail");
-    const outlookCredentials = getProviderCredentials("outlook");
+    const gmailCredentials = getProviderCredentials("gmail") as {
+      type: "gmail";
+      credentials:
+        | {
+            clientId: string;
+            clientSecret: string;
+            topicName: string;
+          }
+        | undefined;
+    } | null;
+    const outlookCredentials = getProviderCredentials("outlook") as {
+      type: "outlook";
+      credentials:
+        | {
+            clientId: string;
+            clientSecret: string;
+          }
+        | undefined;
+    } | null;
     changeEnvironmentOrProject(
       projectNameProp,
       environmentNameProp,
+      projectId,
+      environmentId,
       publishableKeyProp,
       secretKeyProp,
       enabledProviderToBoolean("outlook"),
       enabledProviderToBoolean("gmail"),
       enabledProviderToBoolean("smtp-imap"),
-      gmailCredentials?.clientId,
-      gmailCredentials?.clientSecret,
-      outlookCredentials?.clientId,
-      outlookCredentials?.clientSecret
+      gmailCredentials?.credentials?.clientId,
+      gmailCredentials?.credentials?.clientSecret,
+      gmailCredentials?.credentials?.topicName,
+      outlookCredentials?.credentials?.clientId,
+      outlookCredentials?.credentials?.clientSecret
     );
   }, [
     projectNameProp,
     environmentNameProp,
+    projectId,
+    environmentId,
     publishableKeyProp,
     secretKeyProp,
     changeEnvironmentOrProject,
@@ -121,6 +158,7 @@ export default function EnvironmentDashboard(props: {
                     ? {
                         clientId: gmailClientId,
                         clientSecret: gmailClientSecret,
+                        topicName: gmailTopicName,
                       }
                     : undefined;
                 await UpdateEnvironmentSettings(

@@ -43,15 +43,23 @@ export default async function EnvironmentPage({
           if (provider.credentials) {
             const credentials = JSON.parse(
               decrypt(provider.credentials, process.env.CRED_ENCRYPTION_KEY!)
-            ) as { clientId: string; clientSecret: string };
+            );
             return {
               ...provider,
+              providerCode: provider.providerCode as
+                | "gmail"
+                | "outlook"
+                | "smtp-imap",
               credentials: credentials,
             };
           }
         }
         return {
           ...provider,
+          providerCode: provider.providerCode as
+            | "gmail"
+            | "outlook"
+            | "smtp-imap",
           credentials: undefined,
         };
       })

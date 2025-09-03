@@ -12,18 +12,21 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useDashboardStore } from "@/lib/dashboard/dashboard-store-provider";
+import { toast } from "sonner";
 
 export default function ApiKeysDisplay() {
   const { publishableKey, secretKey } = useDashboardStore((state) => state);
 
-  const handleCopy = async (value: string) => {
+  const handleCopy = async (value: string, message: string) => {
     try {
       await navigator.clipboard.writeText(value);
+      toast(message);
     } catch {}
   };
 
   const handleRegenerate = () => {
-    console.log("Regenerate");
+    // TODO: Implement regenerate keys functionality
+    toast("Not implemented yet!");
   };
 
   return (
@@ -46,7 +49,12 @@ export default function ApiKeysDisplay() {
             />
             <Button
               variant="outline"
-              onClick={() => handleCopy(publishableKey)}
+              onClick={() =>
+                handleCopy(
+                  publishableKey,
+                  "Copied publishable key to clipboard!"
+                )
+              }
             >
               Copy
             </Button>
@@ -62,7 +70,12 @@ export default function ApiKeysDisplay() {
               readOnly
               className="font-mono"
             />
-            <Button variant="outline" onClick={() => handleCopy(secretKey)}>
+            <Button
+              variant="outline"
+              onClick={() =>
+                handleCopy(secretKey, "Copied secret key to clipboard!")
+              }
+            >
               Copy
             </Button>
           </div>

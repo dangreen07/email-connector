@@ -12,15 +12,19 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDashboardStore } from "@/lib/dashboard/dashboard-store-provider";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function ProviderConnections() {
   const {
     environmentName,
+    environmentId,
     outlookEnabled,
     gmailEnabled,
     imapEnabled,
     gmailClientId,
     gmailClientSecret,
+    gmailTopicName,
     outlookClientId,
     outlookClientSecret,
     setOutlookEnabled,
@@ -28,9 +32,19 @@ export default function ProviderConnections() {
     setImapEnabled,
     setGmailClientId,
     setGmailClientSecret,
+    setGmailTopicName,
     setOutlookClientId,
     setOutlookClientSecret,
   } = useDashboardStore((state) => state);
+
+  const gmailPushEndpoint = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/v1/webhook/gmail/${environmentId}`;
+
+  const handleCopy = async (value: string, message: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast(message);
+    } catch {}
+  };
 
   return (
     <Card className="lg:col-span-2">
@@ -106,6 +120,40 @@ export default function ProviderConnections() {
 
           {environmentName === "production" && gmailEnabled ? (
             <div className="mt-4 space-y-4">
+              <div className="grid gap-2">
+                <Label>Push Endpoint</Label>
+                <div className="flex min-w-0 w-full gap-2 items-center">
+                  <p
+                    id="gmail-push-endpoint"
+                    className="flex-1 truncate text-sm px-4 py-2 h-10 border-input bg-transparent dark:bg-input/30 border drop-shadow-lg rounded-md shadow-xs"
+                  >
+                    {gmailPushEndpoint}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() =>
+                      handleCopy(
+                        gmailPushEndpoint,
+                        "Copied gmail push endpoint to clipboard!"
+                      )
+                    }
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="gmail-topic-name">Topic Name</Label>
+                <Input
+                  id="gmail-topic-name"
+                  placeholder="projects/your-awesome-project/subscriptions/gmail-notify"
+                  onChange={(value) =>
+                    setGmailTopicName(value.currentTarget.value)
+                  }
+                  value={gmailTopicName}
+                />
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="gmail-client-id">Client ID</Label>
                 <Input

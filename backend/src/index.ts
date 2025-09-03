@@ -8,6 +8,10 @@ const fastify = Fastify({
 
 fastify.register(v1Routes, { prefix: '/v1' });
 
+fastify.get('/health', (request, response) => {
+  return response.status(200).send('I am alive! Yippeee!');
+});
+
 // Run the server!
 async function start() {
   await redis.connect();

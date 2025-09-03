@@ -72,3 +72,9 @@ export interface SendEmail {
     references?: string;
   };
 }
+
+export interface GmailCredentials {
+  clientId: string;
+  clientSecret: string;
+  topicName: string;
+}

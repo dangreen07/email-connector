@@ -15,13 +15,27 @@ import {
   Attachment,
   EmailAddress,
   EmailMessage,
+  GmailCredentials,
   IDPayload,
   SendEmail,
   StoredStateToken,
 } from '../utils/types';
 import { buildRawEmail } from './send-formatting';
+import { watchRefresh } from '../queues/google';
 
-async function getGoogleClient(environmentName: string, environmentId: string) {
+const requiredScope = [
+  'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/gmail.modify',
+];
+
+function isSubset<T>(subset: T[], superset: T[]) {
+  return subset.every((item) => superset.includes(item));
+}
+
+export async function getGoogleClient(
+  environmentName: string,
+  environmentId: string,
+) {
   let client_id = '';
   let client_secret = '';
   // For now just use the current API for callbacks
@@ -51,10 +65,7 @@ async function getGoogleClient(environmentName: string, environmentId: string) {
     }
     const credentials = JSON.parse(
       decrypt(encryptedCredentials, process.env.CRED_ENCRYPTION_KEY!),
-    ) as {
-      clientId: string;
-      clientSecret: string;
-    };
+    ) as GmailCredentials;
     client_id = credentials.clientId;
     client_secret = credentials.clientSecret;
   } else {
@@ -103,7 +114,7 @@ export async function getGmailOauthLink(
   const authUrl = client.generateAuthUrl({
     access_type: 'offline',
     state: stateToken,
-    scope: ['https://www.googleapis.com/auth/gmail.modify'],
+    scope: requiredScope,
     response_type: 'code',
     prompt: 'consent',
   });
@@ -148,12 +159,48 @@ export async function handleGmailCallback(
     ? new Date(tokenResponse.tokens.expiry_date)
     : new Date(new Date().getTime() + 3600); // Default to an hour in the future
 
+  const scope = tokenResponse.tokens.scope?.split(' ');
+  if (!scope) {
+    throw Error('Invalid token response!');
+  }
+  if (!isSubset(requiredScope, scope)) {
+    const redirectUrl = await getGmailOauthLink(
+      environment,
+      stateToken.identifier,
+      stateToken.redirectAfterAuth,
+    );
+    return response.redirect(redirectUrl);
+  }
+
+  client.setCredentials({
+    access_token: tokenResponse.tokens.access_token,
+    refresh_token: tokenResponse.tokens.refresh_token,
+    expiry_date: expires_at.getTime(),
+  });
+
+  const oauth2 = google.oauth2({
+    auth: client,
+    version: 'v2',
+  });
+
+  const { data } = await oauth2.userinfo.get();
+  const email = data.email;
+  if (!email) {
+    throw Error("Cannot get user's email!");
+  }
+
+  await redis.set(
+    `user-email:${environment.id}:${email}`,
+    stateToken.identifier,
+  );
+
   await db
     .insert(connections)
     .values({
       environmentId: environment.id,
       providerCode: 'gmail',
       identifier: stateToken.identifier,
+      email: email,
       accessToken: tokenResponse.tokens.access_token,
       refreshToken: tokenResponse.tokens.refresh_token,
       expiresAt: expires_at,
@@ -163,6 +210,7 @@ export async function handleGmailCallback(
         connections.environmentId,
         connections.providerCode,
         connections.identifier,
+        connections.email,
       ],
       set: {
         accessToken: tokenResponse.tokens.access_token,
@@ -172,6 +220,44 @@ export async function handleGmailCallback(
     });
 
   await redis.del(`gmail-state-token:${state}`);
+
+  const gmail = google.gmail({ version: 'v1', auth: client });
+
+  const watchResult = await gmail.users.watch({
+    userId: 'me',
+    requestBody: {
+      topicName: process.env.GOOGLE_TOPIC_NAME!,
+      labelIds: ['INBOX'],
+    },
+  });
+
+  const currentDatetime = new Date().getTime();
+
+  const historyId = watchResult.data.historyId;
+  const expirationDate = watchResult.data.expiration;
+  if (!historyId || !expirationDate) {
+    if (environment.name == 'production') {
+      throw Error('Failed to set up webhook subscription!');
+    }
+    throw Error('Failed to set up webhook subscription, contact site support!');
+  }
+
+  redis.set(
+    `gmail-history-id:${stateToken.environmentId}:${stateToken.identifier}`,
+    historyId,
+  );
+
+  await watchRefresh.add(
+    'watch-refresh',
+    {
+      identifier: stateToken.identifier,
+      environmentId: stateToken.environmentId,
+      environmentName: environment.name,
+    },
+    {
+      delay: Number(expirationDate) - currentDatetime - 60 * 60 * 1000, // Subtract 1 hour to ensure no gap period of notifications
+    },
+  );
 
   return response.redirect(stateToken.redirectAfterAuth);
 }
@@ -536,4 +622,26 @@ export async function sendGmailEmail(
   const id = encrypt(JSON.stringify(payload), process.env.ID_CREATION_SECRET!);
 
   return id;
+}
+
+export async function handleGmailWebhook(
+  request: FastifyRequest,
+  response: FastifyReply,
+) {
+  const body = request.body as {
+    message: {
+      data: string;
+      messageId: string;
+      message_id: string;
+      publishTime: string;
+      publish_time: string;
+    };
+    subscription: string;
+  };
+  const data = JSON.parse(atob(body.message.data)) as {
+    emailAddress: string;
+    historyId: number;
+  };
+  const { environmentId } = request.params as { environmentId: string };
+  return response.status(200).send();
 }

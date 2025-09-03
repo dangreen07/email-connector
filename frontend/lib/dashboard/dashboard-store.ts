@@ -4,6 +4,9 @@ export type DashboardState = {
   projectName: string;
   environmentName: string;
 
+  projectId: string;
+  environmentId: string;
+
   publishableKey: string;
   secretKey: string;
 
@@ -14,6 +17,7 @@ export type DashboardState = {
   gmailEnabled: boolean;
   gmailClientId: string;
   gmailClientSecret: string;
+  gmailTopicName: string;
 
   imapEnabled: boolean;
   currentTab: "connections" | "settings";
@@ -25,6 +29,8 @@ export type DashboardActions = {
   changeEnvironmentOrProject: (
     projectName: string,
     environmentName: string,
+    projectId: string,
+    environmentId: string,
     publishableKey: string,
     secretKey: string,
     outlookEnabled: boolean,
@@ -32,11 +38,16 @@ export type DashboardActions = {
     imapEnabled: boolean,
     gmailClientId?: string,
     gmailClientSecret?: string,
+    gmailTopicName?: string,
     outlookClientId?: string,
     outlookClientSecret?: string
   ) => void;
   setProjectName: (projectName: string) => void;
   setEnvironmentName: (environmentName: string) => void;
+
+  setProjectId: (projectId: string) => void;
+  setEnvironmentId: (environmentId: string) => void;
+
   setPublishableKey: (publishableKey: string) => void;
   setSecretKey: (secretKey: string) => void;
   setOutlookEnabled: (outlookEnabled: boolean) => void;
@@ -44,8 +55,11 @@ export type DashboardActions = {
   setImapEnabled: (imapEnabled: boolean) => void;
   setCurrentTab: (currentTab: "connections" | "settings") => void;
   setChanged: (changed: boolean) => void;
+
   setGmailClientId: (clientId: string) => void;
   setGmailClientSecret: (clientSecret: string) => void;
+  setGmailTopicName: (topicName: string) => void;
+
   setOutlookClientId: (clientId: string) => void;
   setOutlookClientSecret: (clientSecret: string) => void;
 };
@@ -56,6 +70,10 @@ export const initDashboardStore = (): DashboardState => {
   return {
     projectName: "",
     environmentName: "",
+
+    projectId: "",
+    environmentId: "",
+
     publishableKey: "",
     secretKey: "",
     outlookEnabled: false,
@@ -65,6 +83,7 @@ export const initDashboardStore = (): DashboardState => {
     gmailEnabled: false,
     gmailClientId: "",
     gmailClientSecret: "",
+    gmailTopicName: "",
 
     imapEnabled: false,
 
@@ -76,6 +95,10 @@ export const initDashboardStore = (): DashboardState => {
 export const defaultInitState: DashboardState = {
   projectName: "",
   environmentName: "",
+
+  projectId: "",
+  environmentId: "",
+
   publishableKey: "",
   secretKey: "",
   outlookEnabled: false,
@@ -85,6 +108,7 @@ export const defaultInitState: DashboardState = {
   gmailEnabled: false,
   gmailClientId: "",
   gmailClientSecret: "",
+  gmailTopicName: "",
 
   imapEnabled: false,
 
@@ -100,13 +124,20 @@ export const createDashboardStore = (
     changeEnvironmentOrProject: (
       projectName: string,
       environmentName: string,
+
+      projectId: string,
+      environmentId: string,
+
       publishableKey: string,
       secretKey: string,
       outlookEnabled: boolean,
       gmailEnabled: boolean,
       imapEnabled: boolean,
+
       gmailClientId?: string,
       gmailClientSecret?: string,
+      gmailTopicName?: string,
+
       outlookClientId?: string,
       outlookClientSecret?: string
     ) => {
@@ -114,6 +145,8 @@ export const createDashboardStore = (
       const payload: Partial<DashboardState & { changed: boolean }> = {
         projectName,
         environmentName,
+        projectId,
+        environmentId,
         publishableKey,
         secretKey,
         outlookEnabled,
@@ -125,6 +158,7 @@ export const createDashboardStore = (
       if (gmailClientId !== undefined) payload.gmailClientId = gmailClientId;
       if (gmailClientSecret !== undefined)
         payload.gmailClientSecret = gmailClientSecret;
+      if (gmailTopicName !== undefined) payload.gmailTopicName = gmailTopicName;
       if (outlookClientId !== undefined)
         payload.outlookClientId = outlookClientId;
       if (outlookClientSecret !== undefined)
@@ -135,6 +169,10 @@ export const createDashboardStore = (
     },
     setProjectName: (projectName) => set({ projectName, changed: true }),
     setEnvironmentName: (environmentName) => set({ environmentName }), // Not currently allowing users to change
+
+    setProjectId: (projectId) => set({ projectId }),
+    setEnvironmentId: (environmentId) => set({ environmentId }),
+
     setPublishableKey: (publishableKey) => set({ publishableKey }), // Not currently allowing users to change
     setSecretKey: (secretKey) => set({ secretKey }), // Not currently allowing users to change
     setOutlookEnabled: (outlookEnabled) =>
@@ -151,5 +189,7 @@ export const createDashboardStore = (
       set({ outlookClientId: clientId, changed: true }),
     setOutlookClientSecret: (clientSecret) =>
       set({ outlookClientSecret: clientSecret, changed: true }),
+    setGmailTopicName: (topicName) =>
+      set({ gmailTopicName: topicName, changed: true }),
   }));
 };

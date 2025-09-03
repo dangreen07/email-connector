@@ -70,6 +70,7 @@ export const connections = pgTable(
       .notNull()
       .references(() => providers.code),
     identifier: text('identifier').notNull(),
+    email: text('email'),
     accessToken: text('access_token'),
     refreshToken: text('refresh_token'),
     expiresAt: timestamp('expires_at'),
@@ -81,6 +82,7 @@ export const connections = pgTable(
       table.environmentId,
       table.providerCode,
       table.identifier,
+      table.email,
     ),
   ],
 );

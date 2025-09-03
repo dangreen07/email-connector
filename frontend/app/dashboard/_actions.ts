@@ -234,6 +234,7 @@ export async function UpdateEnvironmentSettings(
   gmailCredentials?: {
     clientId: string;
     clientSecret: string;
+    topicName: string;
   }
 ) {
   const { userId } = await auth();
