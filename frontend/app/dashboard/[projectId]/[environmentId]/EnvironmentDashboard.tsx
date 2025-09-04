@@ -10,10 +10,12 @@ import {
   ProjectDetails,
   DangerZone,
   ProviderConnections,
+  WebhooksManager,
 } from "./_components";
 import { Button } from "@/components/ui/button";
 import { UpdateEnvironmentSettings } from "../../_actions";
 import { DashboardProvider } from "@/utils/types";
+import { Webhook } from "@/utils/db/schema";
 
 export default function EnvironmentDashboard(props: {
   projectId: string;
@@ -23,6 +25,7 @@ export default function EnvironmentDashboard(props: {
   publishableKey: string;
   secretKey: string;
   providers: DashboardProvider[];
+  webhooks: Webhook[];
 }) {
   const {
     projectName: projectNameProp,
@@ -32,6 +35,7 @@ export default function EnvironmentDashboard(props: {
     providers,
     projectId,
     environmentId,
+    webhooks,
   } = props;
 
   const {
@@ -107,11 +111,9 @@ export default function EnvironmentDashboard(props: {
       enabledProviderToBoolean("outlook"),
       enabledProviderToBoolean("gmail"),
       enabledProviderToBoolean("smtp-imap"),
-      gmailCredentials?.credentials?.clientId,
-      gmailCredentials?.credentials?.clientSecret,
-      gmailCredentials?.credentials?.topicName,
-      outlookCredentials?.credentials?.clientId,
-      outlookCredentials?.credentials?.clientSecret
+      webhooks,
+      gmailCredentials?.credentials,
+      outlookCredentials?.credentials
     );
   }, [
     projectNameProp,
@@ -123,6 +125,7 @@ export default function EnvironmentDashboard(props: {
     changeEnvironmentOrProject,
     enabledProviderToBoolean,
     getProviderCredentials,
+    webhooks,
   ]);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -136,7 +139,9 @@ export default function EnvironmentDashboard(props: {
       >
         <div className="flex justify-between">
           <TabsList>
-            <TabsTrigger value="connections">Connections</TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="providers">Providers</TabsTrigger>
+            <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
             <TabsTrigger value="settings">Project Settings</TabsTrigger>
           </TabsList>
 
@@ -168,6 +173,7 @@ export default function EnvironmentDashboard(props: {
                   outlookEnabled,
                   gmailEnabled,
                   imapEnabled,
+                  webhooks,
                   outlookCredentials,
                   gmailCredentials
                 );
@@ -180,17 +186,26 @@ export default function EnvironmentDashboard(props: {
           </div>
         </div>
 
-        <TabsContent value="connections" className="mt-3">
+        <TabsContent value="overview" className="mt-3">
           <div className="grid gap-6 lg:grid-cols-3">
             <QuickStartGuide />
             <ApiKeysDisplay />
+          </div>
+        </TabsContent>
+        <TabsContent value="providers" className="mt-3">
+          <div className="grid">
+            <ProviderConnections />
+          </div>
+        </TabsContent>
+        <TabsContent value="webhooks" className="mt-3">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <WebhooksManager />
           </div>
         </TabsContent>
         <TabsContent value="settings" className="mt-3">
           <div className="grid gap-6 lg:grid-cols-3">
             <ProjectDetails />
             <DangerZone />
-            <ProviderConnections />
           </div>
         </TabsContent>
       </Tabs>

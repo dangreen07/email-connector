@@ -643,5 +643,16 @@ export async function handleGmailWebhook(
     historyId: number;
   };
   const { environmentId } = request.params as { environmentId: string };
+  const identifier = await redis.get(
+    `user-email:${environmentId}:${data.emailAddress}`,
+  );
+  if (!identifier) {
+    console.error(
+      'A gmail account has no email, but is receiving webhook requests!',
+    );
+    return response.status(200).send();
+  }
+  // Check if the user has any webhooks configured
+
   return response.status(200).send();
 }

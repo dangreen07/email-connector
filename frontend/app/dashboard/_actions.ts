@@ -1,7 +1,13 @@
 "use server";
 
 import db from "@/utils/db";
-import { connectedProviders, environments, projects } from "@/utils/db/schema";
+import {
+  connectedProviders,
+  environments,
+  projects,
+  Webhook,
+  webhooks,
+} from "@/utils/db/schema";
 import { auth } from "@clerk/nextjs/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
@@ -227,6 +233,7 @@ export async function UpdateEnvironmentSettings(
   outlookEnabled: boolean,
   gmailEnabled: boolean,
   imapEnabled: boolean,
+  webhooksList: Webhook[],
   outlookCredentials?: {
     clientId: string;
     clientSecret: string;
@@ -291,12 +298,77 @@ export async function UpdateEnvironmentSettings(
             eq(connectedProviders.providerCode, "smtp-imap")
           )
         ),
+
+      updateWebhooks(webhooksList, environmentId),
     ]);
 
     return { ok: true } as const;
   } catch {
     return { error: "Failed to update environment settings" } as const;
   }
+}
+
+async function updateWebhooks(webhookList: Webhook[], environmentId: string) {
+  return db.transaction(async (tx) => {
+    // 1. Fetch current webhooks for this environment
+    const current = await tx
+      .select({
+        id: webhooks.id,
+        name: webhooks.name,
+        endpointUrl: webhooks.endpointUrl,
+        active: webhooks.active,
+      })
+      .from(webhooks)
+      .where(eq(webhooks.environmentId, environmentId));
+
+    const currentIds = current.map((w) => w.id);
+    const incomingIds = webhookList.filter((w) => w.id).map((w) => w.id!);
+
+    // 2. Delete webhooks that are in DB but not in new list
+    const toDelete = currentIds.filter((id) => !incomingIds.includes(id));
+    if (toDelete.length > 0) {
+      await tx
+        .delete(webhooks)
+        .where(
+          and(
+            eq(webhooks.environmentId, environmentId),
+            inArray(webhooks.id, toDelete)
+          )
+        );
+    }
+
+    // 3. Update existing webhooks
+    for (const w of webhookList) {
+      if (w.id && currentIds.includes(w.id)) {
+        await tx
+          .update(webhooks)
+          .set({
+            name: w.name,
+            endpointUrl: w.endpointUrl,
+            active: w.active,
+          })
+          .where(
+            and(
+              eq(webhooks.id, w.id),
+              eq(webhooks.environmentId, environmentId)
+            )
+          );
+      }
+    }
+
+    // 4. Insert new webhooks (no id provided)
+    const toInsert = webhookList.filter((w) => !w.id);
+    if (toInsert.length > 0) {
+      await tx.insert(webhooks).values(
+        toInsert.map((w) => ({
+          environmentId,
+          name: w.name,
+          endpointUrl: w.endpointUrl,
+          active: w.active,
+        }))
+      );
+    }
+  });
 }
 
 async function updateWithCredentials(

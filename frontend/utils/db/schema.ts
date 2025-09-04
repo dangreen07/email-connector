@@ -81,14 +81,26 @@ export const connections = pgTable(
     uniqueIndex("unique_identifier").on(
       table.environmentId,
       table.providerCode,
-      table.identifier
+      table.identifier,
+      table.email
     ),
   ]
 );
 
+export const webhooks = pgTable("webhook", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  environmentId: uuid("environment_id")
+    .notNull()
+    .references(() => environments.id),
+  name: text("name").notNull(),
+  endpointUrl: text("endpoint_url").notNull(),
+  active: boolean("active").notNull(),
+});
+
 export type Project = typeof projects.$inferSelect;
 export type Environment = typeof environments.$inferSelect;
 export type ConnectedProvider = typeof connectedProviders.$inferSelect;
+export type Webhook = typeof webhooks.$inferSelect;
 
 export interface FullProject extends Project {
   environments: Environment[];

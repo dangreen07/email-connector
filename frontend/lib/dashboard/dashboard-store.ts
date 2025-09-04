@@ -1,3 +1,4 @@
+import { Webhook } from "@/utils/db/schema";
 import { createStore } from "zustand/vanilla";
 
 export type DashboardState = {
@@ -19,8 +20,10 @@ export type DashboardState = {
   gmailClientSecret: string;
   gmailTopicName: string;
 
+  webhooks: Webhook[];
+
   imapEnabled: boolean;
-  currentTab: "connections" | "settings";
+  currentTab: "overview" | "providers" | "webhooks" | "settings";
 
   changed: boolean;
 };
@@ -36,11 +39,16 @@ export type DashboardActions = {
     outlookEnabled: boolean,
     gmailEnabled: boolean,
     imapEnabled: boolean,
-    gmailClientId?: string,
-    gmailClientSecret?: string,
-    gmailTopicName?: string,
-    outlookClientId?: string,
-    outlookClientSecret?: string
+    webhooks: Webhook[],
+    gmailCredentials?: {
+      clientId: string;
+      clientSecret: string;
+      topicName: string;
+    },
+    outlookCredentials?: {
+      clientId: string;
+      clientSecret: string;
+    }
   ) => void;
   setProjectName: (projectName: string) => void;
   setEnvironmentName: (environmentName: string) => void;
@@ -53,7 +61,9 @@ export type DashboardActions = {
   setOutlookEnabled: (outlookEnabled: boolean) => void;
   setGmailEnabled: (gmailEnabled: boolean) => void;
   setImapEnabled: (imapEnabled: boolean) => void;
-  setCurrentTab: (currentTab: "connections" | "settings") => void;
+  setCurrentTab: (
+    currentTab: "overview" | "providers" | "webhooks" | "settings"
+  ) => void;
   setChanged: (changed: boolean) => void;
 
   setGmailClientId: (clientId: string) => void;
@@ -62,6 +72,8 @@ export type DashboardActions = {
 
   setOutlookClientId: (clientId: string) => void;
   setOutlookClientSecret: (clientSecret: string) => void;
+
+  setWebhooks: (webhooks: Webhook[]) => void;
 };
 
 export type DashboardStore = DashboardState & DashboardActions;
@@ -85,9 +97,11 @@ export const initDashboardStore = (): DashboardState => {
     gmailClientSecret: "",
     gmailTopicName: "",
 
+    webhooks: [],
+
     imapEnabled: false,
 
-    currentTab: "connections",
+    currentTab: "overview",
     changed: false,
   };
 };
@@ -102,17 +116,21 @@ export const defaultInitState: DashboardState = {
   publishableKey: "",
   secretKey: "",
   outlookEnabled: false,
+
+  gmailEnabled: false,
+
   outlookClientId: "",
   outlookClientSecret: "",
 
-  gmailEnabled: false,
   gmailClientId: "",
   gmailClientSecret: "",
   gmailTopicName: "",
 
+  webhooks: [],
+
   imapEnabled: false,
 
-  currentTab: "connections",
+  currentTab: "overview",
   changed: false,
 };
 
@@ -134,12 +152,17 @@ export const createDashboardStore = (
       gmailEnabled: boolean,
       imapEnabled: boolean,
 
-      gmailClientId?: string,
-      gmailClientSecret?: string,
-      gmailTopicName?: string,
+      webhooks: Webhook[],
 
-      outlookClientId?: string,
-      outlookClientSecret?: string
+      gmailCredentials?: {
+        clientId: string;
+        clientSecret: string;
+        topicName: string;
+      },
+      outlookCredentials?: {
+        clientId: string;
+        clientSecret: string;
+      }
     ) => {
       // Build payload and only include optional credential fields when provided.
       const payload: Partial<DashboardState & { changed: boolean }> = {
@@ -152,17 +175,20 @@ export const createDashboardStore = (
         outlookEnabled,
         gmailEnabled,
         imapEnabled,
+        webhooks,
         changed: false,
       };
 
-      if (gmailClientId !== undefined) payload.gmailClientId = gmailClientId;
-      if (gmailClientSecret !== undefined)
-        payload.gmailClientSecret = gmailClientSecret;
-      if (gmailTopicName !== undefined) payload.gmailTopicName = gmailTopicName;
-      if (outlookClientId !== undefined)
-        payload.outlookClientId = outlookClientId;
-      if (outlookClientSecret !== undefined)
-        payload.outlookClientSecret = outlookClientSecret;
+      if (gmailCredentials?.clientId !== undefined)
+        payload.gmailClientId = gmailCredentials?.clientId;
+      if (gmailCredentials?.clientSecret !== undefined)
+        payload.gmailClientSecret = gmailCredentials?.clientSecret;
+      if (gmailCredentials?.topicName !== undefined)
+        payload.gmailTopicName = gmailCredentials?.topicName;
+      if (outlookCredentials?.clientId !== undefined)
+        payload.outlookClientId = outlookCredentials?.clientId;
+      if (outlookCredentials?.clientSecret !== undefined)
+        payload.outlookClientSecret = outlookCredentials?.clientSecret;
 
       // Use a typed cast to satisfy the setter signature without using `any`.
       set(payload as Partial<DashboardStore>);
@@ -191,5 +217,6 @@ export const createDashboardStore = (
       set({ outlookClientSecret: clientSecret, changed: true }),
     setGmailTopicName: (topicName) =>
       set({ gmailTopicName: topicName, changed: true }),
+    setWebhooks: (webhooks) => set({ webhooks, changed: true }),
   }));
 };

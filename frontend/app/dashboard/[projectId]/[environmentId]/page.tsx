@@ -1,5 +1,10 @@
 import db from "@/utils/db";
-import { connectedProviders, environments, projects } from "@/utils/db/schema";
+import {
+  connectedProviders,
+  environments,
+  projects,
+  webhooks,
+} from "@/utils/db/schema";
 import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -65,6 +70,11 @@ export default async function EnvironmentPage({
       })
     );
 
+  const webhookList = await db
+    .select()
+    .from(webhooks)
+    .where(and(eq(webhooks.environmentId, environmentId)));
+
   return (
     <EnvironmentDashboard
       projectName={project.projects.name}
@@ -74,6 +84,7 @@ export default async function EnvironmentPage({
       providers={providers}
       projectId={projectId}
       environmentId={environmentId}
+      webhooks={webhookList}
     />
   );
 }
