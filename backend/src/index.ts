@@ -17,7 +17,7 @@ async function start() {
   await redis.connect();
 
   try {
-    await fastify.listen({ port: 8080 });
+    await fastify.listen({ host: '0.0.0.0', port: 8080 });
   } catch (err) {
     fastify.log.error(err);
   }
