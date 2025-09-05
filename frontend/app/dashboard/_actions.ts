@@ -309,6 +309,7 @@ export async function UpdateEnvironmentSettings(
 }
 
 async function updateWebhooks(webhookList: Webhook[], environmentId: string) {
+  console.log(webhookList);
   return db.transaction(async (tx) => {
     // 1. Fetch current webhooks for this environment
     const current = await tx
@@ -322,7 +323,7 @@ async function updateWebhooks(webhookList: Webhook[], environmentId: string) {
       .where(eq(webhooks.environmentId, environmentId));
 
     const currentIds = current.map((w) => w.id);
-    const incomingIds = webhookList.filter((w) => w.id).map((w) => w.id!);
+    const incomingIds = webhookList.map((w) => w.id!);
 
     // 2. Delete webhooks that are in DB but not in new list
     const toDelete = currentIds.filter((id) => !incomingIds.includes(id));

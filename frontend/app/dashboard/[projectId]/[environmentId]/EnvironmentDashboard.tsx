@@ -35,7 +35,7 @@ export default function EnvironmentDashboard(props: {
     providers,
     projectId,
     environmentId,
-    webhooks,
+    webhooks: initialWebhooks,
   } = props;
 
   const {
@@ -43,6 +43,7 @@ export default function EnvironmentDashboard(props: {
     setCurrentTab,
     currentTab,
     changed,
+    webhooks,
     projectName,
     outlookEnabled,
     gmailEnabled,
@@ -111,7 +112,7 @@ export default function EnvironmentDashboard(props: {
       enabledProviderToBoolean("outlook"),
       enabledProviderToBoolean("gmail"),
       enabledProviderToBoolean("smtp-imap"),
-      webhooks,
+      initialWebhooks,
       gmailCredentials?.credentials,
       outlookCredentials?.credentials
     );
@@ -125,7 +126,7 @@ export default function EnvironmentDashboard(props: {
     changeEnvironmentOrProject,
     enabledProviderToBoolean,
     getProviderCredentials,
-    webhooks,
+    initialWebhooks,
   ]);
 
   const [isSaving, setIsSaving] = useState(false);

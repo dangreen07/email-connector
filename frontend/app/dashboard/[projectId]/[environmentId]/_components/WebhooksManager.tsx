@@ -33,12 +33,12 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { createWebhook, deleteWebhook, editWebhook } from "../webhook_actions";
 import { Webhook } from "@/utils/db/schema";
 import { useDashboardStore } from "@/lib/dashboard/dashboard-store-provider";
+import { randomUUID } from "crypto";
 
 export default function WebhooksManager() {
-  const { projectId, environmentId, webhooks, setWebhooks } = useDashboardStore(
+  const { environmentId, webhooks, setWebhooks } = useDashboardStore(
     (state) => state
   );
 
@@ -87,30 +87,29 @@ export default function WebhooksManager() {
     return null;
   }
 
-  async function save() {
+  function save() {
     const error = validate();
     if (error) {
       toast.error(error);
       return;
     }
     if (editing) {
-      await editWebhook(editing.id, name, url, active);
       setWebhooks(
         [...webhooks].map((w) =>
           w.id === editing.id ? { ...w, name, url, active } : w
         )
       );
-      toast.success("Webhook updated");
+      toast.success("Webhook updated. Make sure to Save Changes!");
     } else {
-      const newW = await createWebhook(
-        projectId,
-        environmentId,
+      const newW = {
+        id: randomUUID(),
         name,
-        url,
-        active
-      );
+        environmentId,
+        endpointUrl: url,
+        active: active,
+      };
       setWebhooks([newW, ...webhooks]);
-      toast.success("Webhook created");
+      toast.success("Webhook created. Make sure to Save Changes!");
     }
     setDialogOpen(false);
   }
@@ -129,7 +128,6 @@ export default function WebhooksManager() {
   }
 
   async function toggleActive(w: Webhook, val: boolean) {
-    await editWebhook(w.id, name, url, active);
     setWebhooks(
       [...webhooks].map((x) => (x.id === w.id ? { ...x, active: val } : x))
     );
@@ -142,10 +140,11 @@ export default function WebhooksManager() {
   async function confirmDelete() {
     if (!deleteTarget) return;
     const name = deleteTarget.name;
-    await deleteWebhook(deleteTarget.id);
-    setWebhooks([...webhooks].filter((x) => x.id !== deleteTarget.id));
+    const newList = [...webhooks].filter((x) => x.id !== deleteTarget.id);
+    console.log(newList);
+    setWebhooks(newList);
     setDeleteTarget(null);
-    toast.success(`Deleted webhook "${name}"`);
+    toast.success(`Deleted webhook "${name}". Make sure to Save Changes!`);
   }
 
   return (
