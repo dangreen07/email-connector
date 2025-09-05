@@ -4,6 +4,7 @@ import {
   environments,
   connections,
   connectedProviders,
+  webhooks,
 } from '../db/schema';
 import redis from '../redis';
 import { strToEmailAddress } from '../utils';
@@ -652,7 +653,90 @@ export async function handleGmailWebhook(
     );
     return response.status(200).send();
   }
-  // Check if the user has any webhooks configured
+
+  const environment = await db
+    .select()
+    .from(environments)
+    .where(eq(environments.id, environmentId))
+    .then((val) => val.at(0) ?? null);
+
+  if (!environment) {
+    return;
+  }
+
+  const client = await getGoogleClient(environment.name, environmentId);
+
+  const oauthConnection = await db
+    .select()
+    .from(connections)
+    .where(
+      and(
+        eq(connections.environmentId, environmentId),
+        eq(connections.providerCode, 'gmail'),
+      ),
+    )
+    .then((val) => val.at(0) ?? null);
+
+  if (!oauthConnection) {
+    return;
+  }
+
+  client.setCredentials({
+    access_token: oauthConnection.accessToken,
+    refresh_token: oauthConnection.refreshToken,
+    expiry_date: oauthConnection.expiresAt?.getTime(),
+  });
+
+  const gmail = google.gmail({ version: 'v1', auth: client });
+
+  const oldHistoryId = await redis.get(
+    `gmail-history-id:${environmentId}:${identifier}`,
+  );
+  if (!oldHistoryId) {
+    return;
+  }
+
+  const history = await gmail.users.history
+    .list({
+      startHistoryId: oldHistoryId,
+    })
+    .then((val) => val.data.history);
+  if (history === undefined) {
+    return;
+  }
+  const addedMessages = history
+    .filter((val) => val.messagesAdded)
+    .map((val) => {
+      return val.messagesAdded?.map((added) => {
+        const message = added.message;
+        if (message) {
+          const email = gmailToGeneric(message, identifier, environmentId);
+          return email;
+        }
+      });
+    })
+    .flat()
+    .filter((val) => val !== undefined);
+
+  const webhookList = await db
+    .select()
+    .from(webhooks)
+    .where(eq(webhooks.environmentId, environmentId));
+
+  const requests = webhookList.flatMap((webhook) =>
+    addedMessages.map((email) =>
+      fetch(webhook.endpointUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(email),
+      }),
+    ),
+  );
+
+  // Run them all in parallel
+  await Promise.all(requests);
 
   return response.status(200).send();
 }
