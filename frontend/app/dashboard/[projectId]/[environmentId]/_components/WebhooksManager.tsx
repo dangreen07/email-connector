@@ -141,7 +141,6 @@ export default function WebhooksManager() {
     if (!deleteTarget) return;
     const name = deleteTarget.name;
     const newList = [...webhooks].filter((x) => x.id !== deleteTarget.id);
-    console.log(newList);
     setWebhooks(newList);
     setDeleteTarget(null);
     toast.success(`Deleted webhook "${name}". Make sure to Save Changes!`);
