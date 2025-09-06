@@ -695,6 +695,10 @@ export async function handleGmailWebhook(
   if (!oldHistoryId) {
     return;
   }
+  await redis.set(
+    `gmail-history-id:${environmentId}:${identifier}`,
+    data.historyId,
+  );
 
   const history = await gmail.users.history
     .list({
