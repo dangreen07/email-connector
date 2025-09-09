@@ -16,6 +16,6 @@ redis.on('error', (err) => {
 
 export default redis;
 
-export const connection = new IORedis(url + '?family=0', {
+export const connection = new IORedis(url, {
   maxRetriesPerRequest: null,
 });
