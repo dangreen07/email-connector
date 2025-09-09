@@ -1,5 +1,4 @@
 import Fastify from 'fastify';
-import redis from './redis';
 import v1Routes from './routes/v1';
 
 const fastify = Fastify({
@@ -14,8 +13,6 @@ fastify.get('/health', (request, response) => {
 
 // Run the server!
 async function start() {
-  await redis.connect();
-
   try {
     await fastify.listen({ host: '0.0.0.0', port: 8080 });
   } catch (err) {

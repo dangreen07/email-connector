@@ -13,15 +13,11 @@ import { decrypt } from '../encryption';
 import { GmailCredentials } from '../utils/types';
 
 export const watchRefresh = new Queue('watchRefresh', {
-  connection: {
-    url: process.env.REDIS_URL!,
-  },
+  connection: redis,
 });
 
 export const webhookNotify = new Queue('webhookNotify', {
-  connection: {
-    url: process.env.REDIS_URL!,
-  },
+  connection: redis,
 });
 
 new Worker(
@@ -133,9 +129,7 @@ new Worker(
     );
   },
   {
-    connection: {
-      url: process.env.REDIS_URL!,
-    },
+    connection: redis,
   },
 );
 
@@ -145,8 +139,6 @@ new Worker(
     // TODO: Implement
   },
   {
-    connection: {
-      url: process.env.REDIS_URL!,
-    },
+    connection: redis,
   },
 );

@@ -1,14 +1,10 @@
-import { createClient } from 'redis';
 import { config } from 'dotenv';
+import Redis from 'ioredis';
 
 config({ path: '.env' });
 
-const redis = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-});
-
-redis.on('error', (err) => {
-  console.error('Redis Client Error:', err);
+const redis = new Redis(process.env.REDIS_URL!, {
+  maxRetriesPerRequest: null,
 });
 
 export default redis;
