@@ -45,7 +45,7 @@ const tiersRow1: Tier[] = [
   },
   {
     name: "Growth",
-    price: "$99",
+    price: "$200",
     period: "/mo",
     description: "Perfect for growing SaaS products.",
     features: [
@@ -64,7 +64,7 @@ const tiersRow1: Tier[] = [
 const tiersRow2: Tier[] = [
   {
     name: "Scale",
-    price: "$749",
+    price: "$999",
     period: "/mo",
     description: "For apps with thousands of users.",
     features: [
@@ -79,7 +79,7 @@ const tiersRow2: Tier[] = [
   },
   {
     name: "Max",
-    price: "$3,999",
+    price: "$3,500",
     period: "/mo",
     description: "Up to 20,000 inboxes included.",
     features: [
