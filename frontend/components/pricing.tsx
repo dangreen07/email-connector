@@ -77,21 +77,6 @@ const tiersRow2: Tier[] = [
     cta: "Go Scale",
     href: "/sign-up",
   },
-  {
-    name: "Max",
-    price: "$3,500",
-    period: "/mo",
-    description: "Up to 20,000 inboxes included.",
-    features: [
-      "20,000 inboxes included",
-      "100M API calls included",
-      "500 GB egress included",
-      "$0.18 per extra inbox",
-      "$0.25 per 100k extra API calls",
-    ],
-    cta: "Go Max",
-    href: "/sign-up",
-  },
 ];
 
 const TierCard = (tier: Tier) => (
