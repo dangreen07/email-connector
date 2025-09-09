@@ -6,7 +6,7 @@ import {
   environments,
 } from '../db/schema';
 import { decrypt, encrypt } from '../encryption';
-import { ensureArray, parseImapBody, strToEmailAddress } from '../utils';
+import { ensureArray, strToEmailAddress } from '../utils';
 import { eq, and } from 'drizzle-orm';
 import { connect, Message } from 'imap-simple';
 import {
@@ -18,8 +18,9 @@ import {
   Attachment,
   SendEmail,
 } from '../utils/types';
-import { simpleParser } from 'mailparser';
+import { ParsedMail, simpleParser } from 'mailparser';
 import nodemailer from 'nodemailer';
+import { FetchMessageObject } from 'imapflow';
 
 export async function connectSMTPIMAP(
   environment: Environment,
@@ -261,7 +262,41 @@ export async function getSMTPIMAPMessageById(
   return smtpImapToGeneric(result, identifier, environmentId);
 }
 
-async function smtpImapToGeneric(
+export async function smtpIMAPFlowToGeneric(
+  message: FetchMessageObject,
+  identifier: string,
+  environmentId: string,
+): Promise<EmailMessage> {
+  const source = message.source;
+  if (!source) {
+    throw Error('No Source in Message!');
+  }
+  const email = await simpleParser(source);
+
+  let providerId: {
+    type: 'uid' | 'message-id';
+    value: string;
+  } = {
+    type: 'uid',
+    value: message.uid.toString(),
+  };
+  if (email.messageId) {
+    providerId = {
+      type: 'message-id',
+      value: email.messageId,
+    };
+  }
+
+  return parsedEmailToGeneric(
+    email,
+    providerId,
+    identifier,
+    environmentId,
+    message.internalDate?.toString() ?? new Date().toISOString(),
+  );
+}
+
+export async function smtpImapToGeneric(
   message: Message,
   identifier: string,
   environmentId: string,
@@ -285,6 +320,25 @@ async function smtpImapToGeneric(
     };
   }
 
+  return parsedEmailToGeneric(
+    email,
+    providerId,
+    identifier,
+    environmentId,
+    message.attributes.date.toISOString(),
+  );
+}
+
+function parsedEmailToGeneric(
+  email: ParsedMail,
+  providerId: {
+    type: 'uid' | 'message-id';
+    value: string;
+  },
+  identifier: string,
+  environmentId: string,
+  date: string,
+) {
   const payload: IDPayload = {
     providerId: encrypt(
       JSON.stringify(providerId),
@@ -312,7 +366,7 @@ async function smtpImapToGeneric(
   }
   const to = ensureArray(email.to)
     .map((value) => {
-      let adresses = value.value.map((v) => {
+      const adresses = value.value.map((v) => {
         return {
           name: v.name,
           address: v.address ?? '',
@@ -323,7 +377,7 @@ async function smtpImapToGeneric(
     .flat();
   const cc = ensureArray(email.cc)
     .map((value) => {
-      let adresses = value.value.map((v) => {
+      const adresses = value.value.map((v) => {
         return {
           name: v.name,
           address: v.address ?? '',
@@ -384,7 +438,7 @@ async function smtpImapToGeneric(
     to: to,
     cc: cc,
     replyTo: replyTo,
-    date: message.attributes.date.toISOString(),
+    date: date,
     body: bodies,
     thread: {
       conversationId: id,

@@ -50,7 +50,8 @@ export default async function v1Routes(fastify: FastifyInstance) {
       identifier: string;
       redirectAfterAuth: string;
     };
-    let { providerCode, identifier, redirectAfterAuth } = query; // We can detect environment from the key
+    const { providerCode, identifier } = query; // We can detect environment from the key
+    let { redirectAfterAuth } = query;
     redirectAfterAuth = decodeURIComponent(redirectAfterAuth);
     let smtpCredentials: SMTPIMAPCredentials | null = null;
     if (providerCode === 'smtp-imap') {
@@ -176,7 +177,9 @@ export default async function v1Routes(fastify: FastifyInstance) {
       providerCode,
       limit = 10,
       // TODO: Implement offset and search
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       offset = 0,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       search = '',
     } = request.query as {
       identifier: string;
@@ -229,6 +232,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
             limit,
           );
           return response.status(200).send({ messages });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
           // Propagate helpful error info from Graph
           const errorMessage =
@@ -248,6 +252,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
             limit,
           );
           return response.status(200).send({ messages });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
           const errorMessage = err?.message || 'Failed to fetch Gmail messages';
           const statusCode = err?.statusCode || 500;
@@ -264,6 +269,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
             limit,
           );
           return response.status(200).send({ messages });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
           console.error(err);
           return response
@@ -354,6 +360,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
         default:
           return response.status(401).send({ error: 'Invalid provider code' });
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const errorMessage = err?.message || 'Failed to fetch message';
       const statusCode = err?.statusCode || 500;

@@ -22,6 +22,7 @@ export function strToEmailAddress(str: string): EmailAddress {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function parseImapBody(body: any): Promise<Body[]> {
   const parsed = await simpleParser(body);
   const bodies: Body[] = [];

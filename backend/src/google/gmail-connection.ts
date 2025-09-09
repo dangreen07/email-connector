@@ -6,12 +6,11 @@ import {
   connectedProviders,
   webhooks,
   connectionCredentials,
-  providers,
 } from '../db/schema';
 import redis from '../redis';
 import { strToEmailAddress } from '../utils';
 import db from '../db';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { gmail_v1, google } from 'googleapis';
 import { decrypt, encrypt } from '../encryption';
 import {
@@ -24,7 +23,7 @@ import {
   StoredStateToken,
 } from '../utils/types';
 import { buildRawEmail } from './send-formatting';
-import { watchRefresh } from '../queues/google';
+import { googleQueue } from '../queues/google';
 
 const requiredScope = [
   'https://www.googleapis.com/auth/userinfo.email',
@@ -197,6 +196,9 @@ export async function handleGmailCallback(
     stateToken.identifier,
   );
 
+  // Track whether credentials already existed to prevent duplicate Gmail watch subscriptions
+  let credentialsExisted = false;
+
   await db.transaction(async (tx) => {
     // Check if any connections already connect to these credentials
     let result: {
@@ -243,6 +245,8 @@ export async function handleGmailCallback(
         .then((val) => val.at(0) ?? null);
     }
     if (result) {
+      // Mark that credentials already existed; avoid setting up a duplicate Gmail watch
+      credentialsExisted = true;
       // Now we should update the credentials
       await tx
         .update(connectionCredentials)
@@ -279,6 +283,12 @@ export async function handleGmailCallback(
 
   await redis.del(`gmail-state-token:${state}`);
 
+  // If credentials already existed, skip creating a new watch and scheduling a refresh.
+  // This prevents duplicate watch subscriptions for the same Gmail account.
+  if (credentialsExisted) {
+    return response.redirect(stateToken.redirectAfterAuth);
+  }
+
   const gmail = google.gmail({ version: 'v1', auth: client });
 
   const watchResult = await gmail.users.watch({
@@ -305,7 +315,7 @@ export async function handleGmailCallback(
     historyId,
   );
 
-  await watchRefresh.add(
+  await googleQueue.add(
     'watch-refresh',
     {
       identifier: stateToken.identifier,
@@ -410,11 +420,7 @@ export async function getGmailMessageById(
     .then((rows) => rows.at(0) ?? null);
 
   if (!oauthConnection) {
-    const err: any = new Error(
-      'No Gmail OAuth connection found. Connect Gmail first.',
-    );
-    err.statusCode = 401;
-    throw err;
+    throw new Error('No Gmail OAuth connection found. Connect Gmail first.');
   }
 
   const environment = await db

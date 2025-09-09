@@ -9,7 +9,7 @@ import {
 import db from '../db';
 import { and, eq } from 'drizzle-orm';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { createRedisCachePlugin, hydrateTokenCache } from '../redisCachePlugin';
+import { createRedisCachePlugin, hydrateTokenCache } from './redisCachePlugin';
 import redis from '../redis';
 import { getGraphClient } from './GraphAPI';
 import { decrypt, encrypt } from '../encryption';
@@ -20,7 +20,7 @@ import {
   SendEmail,
   StoredStateToken,
 } from '../utils/types';
-import { azureSubscriptionRefresh } from '../queues/azure';
+import { azureQueue } from '../queues/azure';
 
 const scopes = [
   'Mail.Read',
@@ -304,8 +304,8 @@ export async function handleOutlookCallback(
       clientState: process.env.AZURE_WEBHOOK_STATE!,
     });
 
-    await azureSubscriptionRefresh.add(
-      'refresh',
+    await azureQueue.add(
+      'sub-refresh',
       {
         environmentName: environment.name,
         environmentId: environment.id,
@@ -407,11 +407,9 @@ export async function getAccessToken(
     );
   }
   if (!accessToken) {
-    const err: any = new Error(
+    throw new Error(
       'No Outlook access token available. Connect Outlook first.',
     );
-    err.statusCode = 401;
-    throw err;
   }
   return accessToken;
 }
@@ -436,24 +434,18 @@ export async function getOutlookMessages(
   );
 
   const graphClient = getGraphClient(accessToken);
+  const response = await graphClient
+    .api('/me/messages')
+    .top(Math.min(Math.max(limit, 1), 50))
+    .orderby('receivedDateTime desc')
+    .select(
+      'id,internetMessageId,subject,from,sender,toRecipients,ccRecipients,bccRecipients,replyTo,sentDateTime,body,conversationId',
+    )
+    .get();
 
-  try {
-    const response = await graphClient
-      .api('/me/messages')
-      .top(Math.min(Math.max(limit, 1), 50))
-      .orderby('receivedDateTime desc')
-      .select(
-        'id,internetMessageId,subject,from,sender,toRecipients,ccRecipients,bccRecipients,replyTo,sentDateTime,body,conversationId',
-      )
-      .get();
-
-    return (response?.value ?? []).map((outlookMsg: any) =>
-      outlookToGeneric(outlookMsg, identifier, environmentId),
-    );
-  } catch (error) {
-    // Surface Graph errors to the caller for better diagnostics
-    throw error;
-  }
+  return (response?.value ?? []).map((outlookMsg: unknown) =>
+    outlookToGeneric(outlookMsg, identifier, environmentId),
+  );
 }
 export async function getOutlookMessageById(
   identifier: string,
@@ -469,22 +461,18 @@ export async function getOutlookMessageById(
 
   const graphClient = getGraphClient(accessToken);
 
-  try {
-    const outlookMsg = await graphClient
-      .api(`/me/messages/${providerId}`)
-      .select(
-        'id,internetMessageId,subject,from,sender,toRecipients,ccRecipients,bccRecipients,replyTo,sentDateTime,body,conversationId',
-      )
-      .get();
+  const outlookMsg = await graphClient
+    .api(`/me/messages/${providerId}`)
+    .select(
+      'id,internetMessageId,subject,from,sender,toRecipients,ccRecipients,bccRecipients,replyTo,sentDateTime,body,conversationId',
+    )
+    .get();
 
-    return outlookToGeneric(outlookMsg, identifier, environmentId);
-  } catch (error) {
-    // Surface Graph errors to the caller for better diagnostics
-    throw error;
-  }
+  return outlookToGeneric(outlookMsg, identifier, environmentId);
 }
 
 function outlookToGeneric(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   outlookMsg: any,
   identifier: string,
   environmentId: string,
@@ -514,8 +502,11 @@ function outlookToGeneric(
     subject: outlookMsg.subject,
     from: outlookMsg.from?.emailAddress,
     sender: outlookMsg.sender?.emailAddress,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     to: outlookMsg.toRecipients?.map((r: any) => r.emailAddress) || [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     cc: outlookMsg.ccRecipients?.map((r: any) => r.emailAddress) || [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     replyTo: outlookMsg.replyTo?.map((r: any) => r.emailAddress) || [],
     date: outlookMsg.sentDateTime,
     body: [
@@ -547,6 +538,7 @@ export async function sendOutlookEmail(
   );
   const client = getGraphClient(accessToken);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const message: any = {
     subject: email.subject,
     body: {
@@ -604,6 +596,10 @@ export async function sendOutlookEmail(
 }
 
 export async function handleOutlookWebhook(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   request: FastifyRequest,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   response: FastifyReply,
-) {}
+) {
+  // TODO: Complete the webhook handling
+}
