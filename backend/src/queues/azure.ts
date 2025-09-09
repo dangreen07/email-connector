@@ -37,11 +37,17 @@ new Worker(
       clientState: process.env.AZURE_WEBHOOK_STATE!,
     });
 
-    await azureSubscriptionRefresh.add('refresh', {
-      environmentName: data.environmentName,
-      environmentId: data.environmentId,
-      identifier: data.identifier,
-    });
+    await azureSubscriptionRefresh.add(
+      'refresh',
+      {
+        environmentName: data.environmentName,
+        environmentId: data.environmentId,
+        identifier: data.identifier,
+      },
+      {
+        delay: 50 * 60 * 1000, // Refresh every 50 minutes
+      },
+    );
   },
   {
     connection: {

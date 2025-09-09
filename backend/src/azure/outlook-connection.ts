@@ -304,11 +304,17 @@ export async function handleOutlookCallback(
       clientState: process.env.AZURE_WEBHOOK_STATE!,
     });
 
-    await azureSubscriptionRefresh.add('refresh', {
-      environmentName: environment.name,
-      environmentId: environment.id,
-      identifier: stateToken.identifier,
-    });
+    await azureSubscriptionRefresh.add(
+      'refresh',
+      {
+        environmentName: environment.name,
+        environmentId: environment.id,
+        identifier: stateToken.identifier,
+      },
+      {
+        delay: 50 * 60 * 1000, // Refresh every 50 minutes
+      },
+    );
 
     await redis.del(`outlook-state-token:${state}`);
 
