@@ -8,16 +8,16 @@ import {
 } from '../db/schema';
 import { and, eq } from 'drizzle-orm';
 import { google } from 'googleapis';
-import redis from '../redis';
+import redis, { connection } from '../redis';
 import { decrypt } from '../encryption';
 import { GmailCredentials } from '../utils/types';
 
 export const watchRefresh = new Queue('watchRefresh', {
-  connection: redis,
+  connection: connection,
 });
 
 export const webhookNotify = new Queue('webhookNotify', {
-  connection: redis,
+  connection: connection,
 });
 
 new Worker(
@@ -129,7 +129,7 @@ new Worker(
     );
   },
   {
-    connection: redis,
+    connection: connection,
   },
 );
 
@@ -139,6 +139,6 @@ new Worker(
     // TODO: Implement
   },
   {
-    connection: redis,
+    connection: connection,
   },
 );

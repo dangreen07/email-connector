@@ -70,9 +70,13 @@ export async function getOutlookOAuthLink(
         identifier,
         redirectAfterAuth,
       }),
-      'EX', // Expire time in seconds
-      2 * 60 * 60, // 2 hours
-      'NX', // Only set if the key does not exist
+      {
+        expiration: {
+          type: 'EX',
+          value: 2 * 60 * 60, // 2 hours
+        },
+        condition: 'NX',
+      },
     );
     if (result === 'OK') {
       break;
