@@ -5,6 +5,8 @@ import {
   connections,
   connectedProviders,
   webhooks,
+  connectionCredentials,
+  providers,
 } from '../db/schema';
 import redis from '../redis';
 import { strToEmailAddress } from '../utils';
@@ -195,30 +197,85 @@ export async function handleGmailCallback(
     stateToken.identifier,
   );
 
-  await db
-    .insert(connections)
-    .values({
-      environmentId: environment.id,
-      providerCode: 'gmail',
-      identifier: stateToken.identifier,
-      email: email,
-      accessToken: tokenResponse.tokens.access_token,
-      refreshToken: tokenResponse.tokens.refresh_token,
-      expiresAt: expires_at,
-    })
-    .onConflictDoUpdate({
-      target: [
-        connections.environmentId,
-        connections.providerCode,
-        connections.identifier,
-        connections.email,
-      ],
-      set: {
-        accessToken: tokenResponse.tokens.access_token,
-        refreshToken: sql`COALESCE(EXCLUDED.refresh_token, ${tokenResponse.tokens.refresh_token})`,
-        expiresAt: expires_at,
-      },
-    });
+  await db.transaction(async (tx) => {
+    // Check if any connections already connect to these credentials
+    let result: {
+      id: string;
+    } | null = null;
+    if (environment.name == 'production') {
+      // In production, only check if credentials exist for this email and provider code for this environment id
+      result = await tx
+        .select({
+          id: connectionCredentials.id,
+        })
+        .from(connectionCredentials)
+        .innerJoin(
+          connections,
+          eq(connections.connectionCredentials, connectionCredentials.id),
+        )
+        .where(
+          and(
+            eq(connections.environmentId, environment.id),
+            eq(connectionCredentials.email, email),
+            eq(connectionCredentials.providerCode, 'gmail'),
+          ),
+        )
+        .then((val) => val.at(0) ?? null);
+    } else {
+      result = await tx
+        .select({
+          id: connectionCredentials.id,
+        })
+        .from(connectionCredentials)
+        .innerJoin(
+          connections,
+          eq(connections.connectionCredentials, connectionCredentials.id),
+        )
+        .innerJoin(environments, eq(environments.id, connections.environmentId))
+        .where(
+          and(
+            eq(environments.name, 'development'),
+            eq(connectionCredentials.email, email),
+            eq(connectionCredentials.providerCode, 'gmail'),
+          ),
+        )
+        .limit(1) // Very important, as there could be dozens of these
+        .then((val) => val.at(0) ?? null);
+    }
+    if (result) {
+      // Now we should update the credentials
+      await tx
+        .update(connectionCredentials)
+        .set({
+          accessToken: tokenResponse.tokens.access_token,
+          refreshToken: tokenResponse.tokens.refresh_token,
+          expiresAt: expires_at,
+          updatedAt: new Date(),
+        })
+        .where(eq(connectionCredentials.id, result.id));
+    } else {
+      // Insert new credentials and a new connection
+      const result = await tx
+        .insert(connectionCredentials)
+        .values({
+          providerCode: 'gmail',
+          email: email,
+          accessToken: tokenResponse.tokens.access_token ?? undefined,
+          refreshToken: tokenResponse.tokens.refresh_token ?? undefined,
+          expiresAt: expires_at,
+        })
+        .returning({ id: connectionCredentials.id })
+        .then((val) => val.at(0) ?? null);
+      if (!result) {
+        throw Error('Failed to insert connection credentials!');
+      }
+      await tx.insert(connections).values({
+        environmentId: environment.id,
+        identifier: stateToken.identifier,
+        connectionCredentials: result.id,
+      });
+    }
+  });
 
   await redis.del(`gmail-state-token:${state}`);
 
@@ -271,13 +328,18 @@ export async function getGmailMessages(
   const oauthConnection = await db
     .select()
     .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
     .where(
       and(
         eq(connections.environmentId, environmentId),
-        eq(connections.providerCode, 'gmail'),
+        eq(connectionCredentials.providerCode, 'gmail'),
         eq(connections.identifier, identifier),
       ),
     )
+    .limit(1)
     .then((rows) => rows.at(0) ?? null);
 
   if (!oauthConnection) {
@@ -297,9 +359,9 @@ export async function getGmailMessages(
   const client = await getGoogleClient(environment.name, environmentId);
 
   client.setCredentials({
-    access_token: oauthConnection.accessToken,
-    refresh_token: oauthConnection.refreshToken,
-    expiry_date: oauthConnection.expiresAt?.getTime(),
+    access_token: oauthConnection.connection_credentials.accessToken,
+    refresh_token: oauthConnection.connection_credentials.refreshToken,
+    expiry_date: oauthConnection.connection_credentials.expiresAt?.getTime(),
   });
 
   const gmail = google.gmail({ version: 'v1', auth: client });
@@ -333,13 +395,18 @@ export async function getGmailMessageById(
   const oauthConnection = await db
     .select()
     .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
     .where(
       and(
         eq(connections.environmentId, environmentId),
-        eq(connections.providerCode, 'gmail'),
+        eq(connectionCredentials.providerCode, 'gmail'),
         eq(connections.identifier, identifier),
       ),
     )
+    .limit(1)
     .then((rows) => rows.at(0) ?? null);
 
   if (!oauthConnection) {
@@ -363,20 +430,33 @@ export async function getGmailMessageById(
   const client = await getGoogleClient(environment.name, environmentId);
 
   client.setCredentials({
-    access_token: oauthConnection.accessToken ?? undefined,
-    refresh_token: oauthConnection.refreshToken ?? undefined,
-    expiry_date: oauthConnection.expiresAt?.getTime(),
+    access_token:
+      oauthConnection.connection_credentials.accessToken ?? undefined,
+    refresh_token:
+      oauthConnection.connection_credentials.refreshToken ?? undefined,
+    expiry_date: oauthConnection.connection_credentials.expiresAt?.getTime(),
   });
 
-  if (Date.now() > (oauthConnection.expiresAt?.getTime() ?? Date.now())) {
+  if (
+    Date.now() >
+    (oauthConnection.connection_credentials.expiresAt?.getTime() ?? Date.now())
+  ) {
     const accessToken = (await client.getAccessToken()).token;
-    await db.update(connections).set({
-      accessToken: accessToken,
-      refreshToken: client.credentials.refresh_token,
-      expiresAt: client.credentials.expiry_date
-        ? new Date(client.credentials.expiry_date)
-        : new Date(new Date().getTime() + 3600), // Default to an hour
-    });
+    await db
+      .update(connectionCredentials)
+      .set({
+        accessToken: accessToken,
+        refreshToken: client.credentials.refresh_token,
+        expiresAt: client.credentials.expiry_date
+          ? new Date(client.credentials.expiry_date)
+          : new Date(new Date().getTime() + 3600), // Default to an hour
+      })
+      .where(
+        eq(
+          connectionCredentials.id,
+          oauthConnection.connections.connectionCredentials,
+        ),
+      );
   }
 
   const gmail = google.gmail({ version: 'v1', auth: client });
@@ -557,13 +637,18 @@ export async function sendGmailEmail(
   const oauthConnection = await db
     .select()
     .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
     .where(
       and(
         eq(connections.environmentId, environmentId),
-        eq(connections.providerCode, 'gmail'),
+        eq(connectionCredentials.providerCode, 'gmail'),
         eq(connections.identifier, identifier),
       ),
     )
+    .limit(1)
     .then((rows) => rows.at(0) ?? null);
 
   if (!oauthConnection) {
@@ -573,20 +658,31 @@ export async function sendGmailEmail(
   const client = await getGoogleClient(environmentName, environmentId);
 
   client.setCredentials({
-    access_token: oauthConnection.accessToken,
-    refresh_token: oauthConnection.refreshToken,
-    expiry_date: oauthConnection.expiresAt?.getTime(),
+    access_token: oauthConnection.connection_credentials.accessToken,
+    refresh_token: oauthConnection.connection_credentials.refreshToken,
+    expiry_date: oauthConnection.connection_credentials.expiresAt?.getTime(),
   });
 
-  if (Date.now() > (oauthConnection.expiresAt?.getTime() ?? Date.now())) {
+  if (
+    Date.now() >
+    (oauthConnection.connection_credentials.expiresAt?.getTime() ?? Date.now())
+  ) {
     const accessToken = (await client.getAccessToken()).token;
-    await db.update(connections).set({
-      accessToken: accessToken,
-      refreshToken: client.credentials.refresh_token,
-      expiresAt: client.credentials.expiry_date
-        ? new Date(client.credentials.expiry_date)
-        : new Date(new Date().getTime() + 3600),
-    });
+    await db
+      .update(connectionCredentials)
+      .set({
+        accessToken: accessToken,
+        refreshToken: client.credentials.refresh_token,
+        expiresAt: client.credentials.expiry_date
+          ? new Date(client.credentials.expiry_date)
+          : new Date(new Date().getTime() + 3600),
+      })
+      .where(
+        eq(
+          connectionCredentials.id,
+          oauthConnection.connections.connectionCredentials,
+        ),
+      );
   }
 
   const gmail = google.gmail({ version: 'v1', auth: client });
@@ -669,12 +765,18 @@ export async function handleGmailWebhook(
   const oauthConnection = await db
     .select()
     .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
     .where(
       and(
         eq(connections.environmentId, environmentId),
-        eq(connections.providerCode, 'gmail'),
+        eq(connectionCredentials.providerCode, 'gmail'),
+        eq(connections.identifier, identifier),
       ),
     )
+    .limit(1)
     .then((val) => val.at(0) ?? null);
 
   if (!oauthConnection) {
@@ -682,9 +784,9 @@ export async function handleGmailWebhook(
   }
 
   client.setCredentials({
-    access_token: oauthConnection.accessToken,
-    refresh_token: oauthConnection.refreshToken,
-    expiry_date: oauthConnection.expiresAt?.getTime(),
+    access_token: oauthConnection.connection_credentials.accessToken,
+    refresh_token: oauthConnection.connection_credentials.refreshToken,
+    expiry_date: oauthConnection.connection_credentials.expiresAt?.getTime(),
   });
 
   const gmail = google.gmail({ version: 'v1', auth: client });
@@ -702,6 +804,7 @@ export async function handleGmailWebhook(
 
   const history = await gmail.users.history
     .list({
+      userId: 'me',
       startHistoryId: oldHistoryId,
     })
     .then((val) => val.data.history);

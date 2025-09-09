@@ -1,5 +1,10 @@
 import db from '../db';
-import { connections, Environment } from '../db/schema';
+import {
+  connectionCredentials,
+  connections,
+  Environment,
+  environments,
+} from '../db/schema';
 import { decrypt, encrypt } from '../encryption';
 import { ensureArray, parseImapBody, strToEmailAddress } from '../utils';
 import { eq, and } from 'drizzle-orm';
@@ -26,28 +31,83 @@ export async function connectSMTPIMAP(
     JSON.stringify(smtpCredentials),
     process.env.CRED_ENCRYPTION_KEY!,
   );
+  const email = smtpCredentials.email;
 
-  const result = await db
-    .insert(connections)
-    .values({
-      environmentId: environment.id,
-      providerCode: 'smtp-imap',
-      identifier,
-      credentials,
-    })
-    .onConflictDoUpdate({
-      target: [
-        connections.environmentId,
-        connections.providerCode,
-        connections.identifier,
-      ],
-      set: { credentials },
-    })
-    .returning();
-
-  if (result.length === 0) {
-    throw new Error('Failed to insert connection');
-  }
+  await db.transaction(async (tx) => {
+    // Check if any connections already connect to these credentials
+    let result: {
+      id: string;
+    } | null = null;
+    if (environment.name == 'production') {
+      // In production, only check if credentials exist for this email and provider code for this environment id
+      result = await tx
+        .select({
+          id: connectionCredentials.id,
+        })
+        .from(connectionCredentials)
+        .innerJoin(
+          connections,
+          eq(connections.connectionCredentials, connectionCredentials.id),
+        )
+        .where(
+          and(
+            eq(connections.environmentId, environment.id),
+            eq(connectionCredentials.email, email),
+            eq(connectionCredentials.providerCode, 'gmail'),
+          ),
+        )
+        .then((val) => val.at(0) ?? null);
+    } else {
+      result = await tx
+        .select({
+          id: connectionCredentials.id,
+        })
+        .from(connectionCredentials)
+        .innerJoin(
+          connections,
+          eq(connections.connectionCredentials, connectionCredentials.id),
+        )
+        .innerJoin(environments, eq(environments.id, connections.environmentId))
+        .where(
+          and(
+            eq(environments.name, 'development'),
+            eq(connectionCredentials.email, email),
+            eq(connectionCredentials.providerCode, 'gmail'),
+          ),
+        )
+        .limit(1) // Very important, as there could be dozens of these
+        .then((val) => val.at(0) ?? null);
+    }
+    if (result) {
+      // Now we should update the credentials
+      await tx
+        .update(connectionCredentials)
+        .set({
+          credentials: credentials,
+          updatedAt: new Date(),
+        })
+        .where(eq(connectionCredentials.id, result.id));
+    } else {
+      // Insert new credentials and a new connection
+      const result = await tx
+        .insert(connectionCredentials)
+        .values({
+          providerCode: 'gmail',
+          email: email,
+          credentials: credentials,
+        })
+        .returning({ id: connectionCredentials.id })
+        .then((val) => val.at(0) ?? null);
+      if (!result) {
+        throw Error('Failed to insert connection credentials!');
+      }
+      await tx.insert(connections).values({
+        environmentId: environment.id,
+        identifier: identifier,
+        connectionCredentials: result.id,
+      });
+    }
+  });
 }
 
 export async function getSMTPIMAPMessages(
@@ -58,21 +118,25 @@ export async function getSMTPIMAPMessages(
   const connection = await db
     .select()
     .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
     .where(
       and(
         eq(connections.identifier, identifier),
         eq(connections.environmentId, environmentId),
-        eq(connections.providerCode, 'smtp-imap'),
+        eq(connectionCredentials.providerCode, 'smtp-imap'),
       ),
     )
     .then((rows) => rows.at(0) ?? null);
 
-  if (!connection || !connection.credentials) {
+  if (!connection || !connection.connection_credentials.credentials) {
     console.error('No connection found for this identifier');
     throw new Error('No connection found for this identifier');
   }
   const credentials = decrypt(
-    connection.credentials,
+    connection.connection_credentials.credentials,
     process.env.CRED_ENCRYPTION_KEY!,
   );
   const decryptedCredentials: SMTPIMAPCredentials = JSON.parse(credentials);
@@ -134,21 +198,25 @@ export async function getSMTPIMAPMessageById(
   const connection = await db
     .select()
     .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
     .where(
       and(
         eq(connections.identifier, identifier),
         eq(connections.environmentId, environmentId),
-        eq(connections.providerCode, 'smtp-imap'),
+        eq(connectionCredentials.providerCode, 'smtp-imap'),
       ),
     )
     .then((rows) => rows.at(0) ?? null);
 
-  if (!connection || !connection.credentials) {
+  if (!connection || !connection.connection_credentials.credentials) {
     console.error('No connection found for this identifier');
     throw new Error('No connection found for this identifier');
   }
   const credentials = decrypt(
-    connection.credentials,
+    connection.connection_credentials.credentials,
     process.env.CRED_ENCRYPTION_KEY!,
   );
   const decryptedCredentials: SMTPIMAPCredentials = JSON.parse(credentials);
@@ -333,6 +401,10 @@ export async function sendSMTPIMAPEmail(
   const connection = await db
     .select()
     .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
     .where(
       and(
         eq(connections.environmentId, environmentId),
@@ -345,7 +417,7 @@ export async function sendSMTPIMAPEmail(
     throw Error('Could not find connection!');
   }
 
-  const rawCredentials = connection.credentials;
+  const rawCredentials = connection.connection_credentials.credentials;
   if (!rawCredentials) {
     throw Error('Could not get credentials!');
   }

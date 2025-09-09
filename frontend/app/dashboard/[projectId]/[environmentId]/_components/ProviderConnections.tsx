@@ -147,7 +147,7 @@ export default function ProviderConnections() {
                 <Label htmlFor="gmail-topic-name">Topic Name</Label>
                 <Input
                   id="gmail-topic-name"
-                  placeholder="projects/your-awesome-project/subscriptions/gmail-notify"
+                  placeholder="projects/your-awesome-project/topics/gmail-notify"
                   onChange={(value) =>
                     setGmailTopicName(value.currentTarget.value)
                   }

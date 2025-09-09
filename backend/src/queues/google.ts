@@ -1,7 +1,11 @@
 import { Queue, Worker } from 'bullmq';
 import { getGoogleClient } from '../google/gmail-connection';
 import db from '../db';
-import { connectedProviders, connections } from '../db/schema';
+import {
+  connectedProviders,
+  connectionCredentials,
+  connections,
+} from '../db/schema';
 import { and, eq } from 'drizzle-orm';
 import { google } from 'googleapis';
 import redis from '../redis';
@@ -37,26 +41,33 @@ new Worker(
     const connection = await db
       .select()
       .from(connections)
+      .innerJoin(
+        connectionCredentials,
+        eq(connectionCredentials.id, connections.connectionCredentials),
+      )
       .where(
         and(
           eq(connections.identifier, data.identifier),
           eq(connections.environmentId, data.environmentId),
-          eq(connections.providerCode, 'gmail'),
+          eq(connectionCredentials.providerCode, 'gmail'),
         ),
       )
       .limit(1)
       .then((val) => val.at(0) ?? null);
 
-    if (!connection?.accessToken || !connection?.refreshToken) {
+    if (
+      !connection?.connection_credentials?.accessToken ||
+      !connection.connection_credentials?.refreshToken
+    ) {
       console.error(
         'User connection for gmail must have access token and refresh token!',
       );
       return;
     }
     client.setCredentials({
-      access_token: connection.accessToken,
-      refresh_token: connection.refreshToken,
-      expiry_date: connection.expiresAt?.getTime(),
+      access_token: connection.connection_credentials.accessToken,
+      refresh_token: connection.connection_credentials.refreshToken,
+      expiry_date: connection.connection_credentials.expiresAt?.getTime(),
     });
 
     let topicName = process.env.GOOGLE_TOPIC_NAME!;

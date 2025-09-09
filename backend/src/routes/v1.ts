@@ -1,5 +1,10 @@
 import { FastifyInstance } from 'fastify';
-import { connectedProviders, environments, connections } from '../db/schema';
+import {
+  connectedProviders,
+  environments,
+  connections,
+  connectionCredentials,
+} from '../db/schema';
 import db from '../db';
 import { and, eq } from 'drizzle-orm';
 import {
@@ -8,6 +13,7 @@ import {
   handleOutlookCallback,
   getOutlookMessageById,
   sendOutlookEmail,
+  handleOutlookWebhook,
 } from '../azure/outlook-connection';
 import {
   getGmailMessages,
@@ -195,9 +201,13 @@ export default async function v1Routes(fastify: FastifyInstance) {
       })
       .from(connections)
       .innerJoin(environments, eq(connections.environmentId, environments.id))
+      .innerJoin(
+        connectionCredentials,
+        eq(connectionCredentials.id, connections.connectionCredentials),
+      )
       .where(
         and(
-          eq(connections.providerCode, providerCode),
+          eq(connectionCredentials.providerCode, providerCode),
           eq(connections.identifier, identifier),
           eq(environments.secretKey, secretKey),
         ),
@@ -422,4 +432,5 @@ export default async function v1Routes(fastify: FastifyInstance) {
 
   // Webhook endpoints
   fastify.post('/webhook/gmail/:environmentId', handleGmailWebhook);
+  fastify.post('/webhook/outlook/:environmentId', handleOutlookWebhook);
 }

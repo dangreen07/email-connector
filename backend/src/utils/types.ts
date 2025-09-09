@@ -78,3 +78,10 @@ export interface GmailCredentials {
   clientSecret: string;
   topicName: string;
 }
+
+export interface GraphUser {
+  id: string;
+  displayName: string;
+  userPrincipalName: string;
+  mail?: string;
+}

@@ -5,7 +5,13 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  pgEnum,
 } from 'drizzle-orm/pg-core';
+
+export const environmentNameEnum = pgEnum('names', [
+  'development',
+  'production',
+]);
 
 export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -16,7 +22,7 @@ export const projects = pgTable('projects', {
 
 export const environments = pgTable('environments', {
   id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
+  name: environmentNameEnum('name').notNull(),
   projectId: uuid('project_id')
     .notNull()
     .references(() => projects.id),
@@ -66,26 +72,32 @@ export const connections = pgTable(
     environmentId: uuid('environment_id')
       .notNull()
       .references(() => environments.id),
-    providerCode: text('provider_code')
-      .notNull()
-      .references(() => providers.code),
     identifier: text('identifier').notNull(),
-    email: text('email'),
-    accessToken: text('access_token'),
-    refreshToken: text('refresh_token'),
-    expiresAt: timestamp('expires_at'),
-    credentials: text('credentials'), // Encrypted with AES-256-GCM of JSONified data.
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    connectionCredentials: uuid('connection_credentials_id')
+      .references(() => connectionCredentials.id)
+      .notNull(),
   },
   (table) => [
     uniqueIndex('unique_identifier').on(
       table.environmentId,
-      table.providerCode,
       table.identifier,
-      table.email,
+      table.connectionCredentials,
     ),
   ],
 );
+
+export const connectionCredentials = pgTable('connection_credentials', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  providerCode: text('provider_code')
+    .notNull()
+    .references(() => providers.code),
+  email: text('email').notNull(),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  expiresAt: timestamp('expires_at'),
+  credentials: text('credentials'), // Encrypted with AES-256-GCM of JSONified data.
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
 
 export const webhooks = pgTable('webhook', {
   id: uuid('id').primaryKey().defaultRandom(),

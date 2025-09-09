@@ -255,6 +255,7 @@ export async function UpdateEnvironmentSettings(
       .update(projects)
       .set({
         name: projectName,
+        updatedAt: new Date(),
       })
       .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
 
@@ -380,6 +381,7 @@ async function updateWithCredentials(
     | {
         clientId: string;
         clientSecret: string;
+        topicName?: string;
       }
     | undefined,
   providerCode: "outlook" | "gmail"

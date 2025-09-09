@@ -4,6 +4,7 @@ import {
   environments,
   connections,
   connectedProviders,
+  connectionCredentials,
 } from '../db/schema';
 import db from '../db';
 import { and, eq } from 'drizzle-orm';
@@ -14,10 +15,12 @@ import { getGraphClient } from './GraphAPI';
 import { decrypt, encrypt } from '../encryption';
 import {
   EmailMessage,
+  GraphUser,
   IDPayload,
   SendEmail,
   StoredStateToken,
 } from '../utils/types';
+import { azureSubscriptionRefresh } from '../queues/azure';
 
 const scopes = [
   'Mail.Read',
@@ -206,24 +209,106 @@ export async function handleOutlookCallback(
       redirectUri: `${process.env.API_URL}/v1/callback/outlook`,
     });
 
-    await db
-      .insert(connections)
-      .values({
-        environmentId: environment.id,
-        providerCode: 'outlook',
-        identifier: stateToken.identifier,
-      })
-      .onConflictDoUpdate({
-        target: [
-          connections.environmentId,
-          connections.providerCode,
-          connections.identifier,
-        ],
-        set: {
-          accessToken: tokenResponse.accessToken,
-          updatedAt: new Date(),
-        },
-      });
+    const graphClient = getGraphClient(tokenResponse.accessToken);
+    const profile: GraphUser = await graphClient.api('/me').get();
+    const email = profile.mail ?? profile.userPrincipalName;
+
+    await db.transaction(async (tx) => {
+      // Check if any connections already connect to these credentials
+      let result: {
+        id: string;
+      } | null = null;
+      if (environment.name == 'production') {
+        // In production, only check if credentials exist for this email and provider code for this environment id
+        result = await tx
+          .select({
+            id: connectionCredentials.id,
+          })
+          .from(connectionCredentials)
+          .innerJoin(
+            connections,
+            eq(connections.connectionCredentials, connectionCredentials.id),
+          )
+          .where(
+            and(
+              eq(connections.environmentId, environment.id),
+              eq(connectionCredentials.email, email),
+              eq(connectionCredentials.providerCode, 'gmail'),
+            ),
+          )
+          .then((val) => val.at(0) ?? null);
+      } else {
+        result = await tx
+          .select({
+            id: connectionCredentials.id,
+          })
+          .from(connectionCredentials)
+          .innerJoin(
+            connections,
+            eq(connections.connectionCredentials, connectionCredentials.id),
+          )
+          .innerJoin(
+            environments,
+            eq(environments.id, connections.environmentId),
+          )
+          .where(
+            and(
+              eq(environments.name, 'development'),
+              eq(connectionCredentials.email, email),
+              eq(connectionCredentials.providerCode, 'gmail'),
+            ),
+          )
+          .limit(1) // Very important, as there could be dozens of these
+          .then((val) => val.at(0) ?? null);
+      }
+      if (result) {
+        // Now we should update the credentials
+        await tx
+          .update(connectionCredentials)
+          .set({
+            updatedAt: new Date(),
+          })
+          .where(eq(connectionCredentials.id, result.id));
+      } else {
+        // Insert new credentials and a new connection
+        const result = await tx
+          .insert(connectionCredentials)
+          .values({
+            providerCode: 'gmail',
+            email: email,
+          })
+          .returning({ id: connectionCredentials.id })
+          .then((val) => val.at(0) ?? null);
+        if (!result) {
+          throw Error('Failed to insert connection credentials!');
+        }
+        await tx.insert(connections).values({
+          environmentId: environment.id,
+          identifier: stateToken.identifier,
+          connectionCredentials: result.id,
+        });
+      }
+    });
+
+    const notificationUri =
+      process.env.NODE_ENV == 'development'
+        ? process.env.PROXY_URL
+        : process.env.API_URL;
+
+    // Needs to be refreshed every hour to keep alive!
+    await graphClient.api('/subscriptions').post({
+      changeType: 'created',
+      notificationUrl: `${notificationUri}/webhook/outlook/${environment.id}`, // must be HTTPS & publicly reachable
+      resource: "me/mailFolders('inbox')/messages",
+      expirationDateTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // max 1 hour for mail
+      clientState: process.env.AZURE_WEBHOOK_STATE!,
+    });
+
+    await azureSubscriptionRefresh.add('refresh', {
+      environmentName: environment.name,
+      environmentId: environment.id,
+      identifier: stateToken.identifier,
+    });
 
     await redis.del(`outlook-state-token:${state}`);
 
@@ -270,7 +355,7 @@ async function getOutlookAccessToken(
   }
 }
 
-async function getAccessToken(
+export async function getAccessToken(
   environmentName: string,
   identifier: string,
   environmentId: string,
@@ -511,3 +596,8 @@ export async function sendOutlookEmail(
 
   return id;
 }
+
+export async function handleOutlookWebhook(
+  request: FastifyRequest,
+  response: FastifyReply,
+) {}
