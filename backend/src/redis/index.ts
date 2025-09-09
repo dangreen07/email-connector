@@ -4,7 +4,7 @@ import IORedis from 'ioredis';
 
 config({ path: '.env' });
 
-const url = (process.env.REDIS_URL || 'redis://localhost:6379') + '?family=0';
+const url = process.env.REDIS_URL || 'redis://localhost:6379';
 
 const redis = createClient({
   url,
@@ -16,4 +16,6 @@ redis.on('error', (err) => {
 
 export default redis;
 
-export const connection = new IORedis(url, { maxRetriesPerRequest: null });
+export const connection = new IORedis(url + '?family=0', {
+  maxRetriesPerRequest: null,
+});
