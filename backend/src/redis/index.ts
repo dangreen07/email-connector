@@ -4,7 +4,7 @@ import IORedis from 'ioredis';
 
 config({ path: '.env' });
 
-const url = process.env.REDIS_URL || 'redis://localhost:6379';
+const url = (process.env.REDIS_URL || 'redis://localhost:6379') + '?family=0';
 
 const redis = createClient({
   url,
