@@ -42,7 +42,7 @@ function createMsalClient(
   const msalConfig: Configuration = {
     auth: {
       clientId: clientId ?? process.env.AZURE_CLIENT_ID!,
-      authority: `https://login.microsoftonline.com/common`,
+      authority: `https://login.microsoftonline.com/consumers`,
       clientSecret: clientSecret ?? process.env.AZURE_CLIENT_SECRET!,
     },
     cache: {
@@ -233,7 +233,7 @@ export async function handleOutlookCallback(
             and(
               eq(connections.environmentId, environment.id),
               eq(connectionCredentials.email, email),
-              eq(connectionCredentials.providerCode, 'gmail'),
+              eq(connectionCredentials.providerCode, 'outlook'),
             ),
           )
           .then((val) => val.at(0) ?? null);
@@ -255,7 +255,7 @@ export async function handleOutlookCallback(
             and(
               eq(environments.name, 'development'),
               eq(connectionCredentials.email, email),
-              eq(connectionCredentials.providerCode, 'gmail'),
+              eq(connectionCredentials.providerCode, 'outlook'),
             ),
           )
           .limit(1) // Very important, as there could be dozens of these
@@ -274,7 +274,7 @@ export async function handleOutlookCallback(
         const result = await tx
           .insert(connectionCredentials)
           .values({
-            providerCode: 'gmail',
+            providerCode: 'outlook',
             email: email,
           })
           .returning({ id: connectionCredentials.id })
@@ -290,15 +290,12 @@ export async function handleOutlookCallback(
       }
     });
 
-    const notificationUri =
-      process.env.NODE_ENV == 'development'
-        ? process.env.PROXY_URL
-        : process.env.API_URL;
+    const notificationUri = process.env.PROXY_URL!;
 
     // Needs to be refreshed every hour to keep alive!
     await graphClient.api('/subscriptions').post({
       changeType: 'created',
-      notificationUrl: `${notificationUri}/webhook/outlook/${environment.id}`, // must be HTTPS & publicly reachable
+      notificationUrl: `${notificationUri}/v1/webhook/outlook/${environment.id}`, // must be HTTPS & publicly reachable
       resource: "me/mailFolders('inbox')/messages",
       expirationDateTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // max 1 hour for mail
       clientState: process.env.AZURE_WEBHOOK_STATE!,
@@ -319,8 +316,10 @@ export async function handleOutlookCallback(
     await redis.del(`outlook-state-token:${state}`);
 
     return response.redirect(stateToken.redirectAfterAuth);
-  } catch {
-    return response.status(500).send({ error: 'Failed to acquire token' });
+  } catch (err) {
+    return response
+      .status(500)
+      .send({ error: `Failed to acquire token: ${err}` });
   }
 }
 
@@ -596,10 +595,24 @@ export async function sendOutlookEmail(
 }
 
 export async function handleOutlookWebhook(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   request: FastifyRequest,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   response: FastifyReply,
 ) {
   // TODO: Complete the webhook handling
+  const { validationCode, validationToken } = request.query as {
+    validationCode?: string;
+    validationToken?: string;
+  };
+  if (validationCode) {
+    // Event Grid legacy validation format
+    return response.status(200).send({ validationResponse: validationCode });
+  } else if (validationToken) {
+    // Some services (like Graph change notifications) use "validationToken"
+    return response
+      .status(200)
+      .header('Content-Type', 'text/plain')
+      .send(validationToken);
+  }
+  console.log(request.body);
+  return response.status(200).send();
 }

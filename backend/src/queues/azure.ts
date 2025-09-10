@@ -17,10 +17,7 @@ export const azureSubRefresh = async (job: Job<any, any, string>) => {
   );
   const graphClient = getGraphClient(accessToken);
 
-  const notificationUri =
-    process.env.NODE_ENV == 'development'
-      ? process.env.PROXY_URL
-      : process.env.API_URL;
+  const notificationUri = process.env.PROXY_URL!;
 
   // Needs to be refreshed every hour to keep alive!
   await graphClient.api('/subscriptions').post({
