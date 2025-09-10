@@ -4,7 +4,6 @@ import {
   environments,
   connections,
   connectedProviders,
-  webhooks,
   connectionCredentials,
 } from '../db/schema';
 import redis from '../redis';
@@ -831,25 +830,11 @@ export async function handleGmailWebhook(
     .flat()
     .filter((val) => val !== undefined);
 
-  const webhookList = await db
-    .select()
-    .from(webhooks)
-    .where(eq(webhooks.environmentId, environmentId));
-
-  const requests = webhookList.flatMap((webhook) =>
+  await Promise.all(
     addedMessages.map((email) =>
-      fetch(webhook.endpointUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(email),
-      }),
+      queue.add('webhook-notify', { environmentId, message: email }),
     ),
   );
-
-  // Run them all in parallel
-  await Promise.all(requests);
 
   return response.status(200).send();
 }
