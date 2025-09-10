@@ -21,6 +21,7 @@ import {
 import { ParsedMail, simpleParser } from 'mailparser';
 import nodemailer from 'nodemailer';
 import { FetchMessageObject } from 'imapflow';
+import { IMAPListener } from '../queues/smtp-imap';
 
 export async function connectSMTPIMAP(
   environment: Environment,
@@ -34,13 +35,10 @@ export async function connectSMTPIMAP(
   );
   const email = smtpCredentials.email;
 
-  await db.transaction(async (tx) => {
-    // Check if any connections already connect to these credentials
-    let result: {
-      id: string;
-    } | null = null;
-    if (environment.name == 'production') {
-      // In production, only check if credentials exist for this email and provider code for this environment id
+  const creds = await db.transaction(async (tx) => {
+    let result: { id: string } | null = null;
+
+    if (environment.name === 'production') {
       result = await tx
         .select({
           id: connectionCredentials.id,
@@ -76,38 +74,59 @@ export async function connectSMTPIMAP(
             eq(connectionCredentials.providerCode, 'gmail'),
           ),
         )
-        .limit(1) // Very important, as there could be dozens of these
+        .limit(1)
         .then((val) => val.at(0) ?? null);
     }
+
     if (result) {
-      // Now we should update the credentials
+      // Update existing credentials record
       await tx
         .update(connectionCredentials)
         .set({
-          credentials: credentials,
+          credentials,
           updatedAt: new Date(),
         })
         .where(eq(connectionCredentials.id, result.id));
+
+      // Fetch and return the updated record
+      const updated = await tx
+        .select()
+        .from(connectionCredentials)
+        .where(eq(connectionCredentials.id, result.id))
+        .limit(1)
+        .then((val) => val.at(0) ?? null);
+
+      return updated;
     } else {
-      // Insert new credentials and a new connection
-      const result = await tx
+      // Insert new credentials
+      const inserted = await tx
         .insert(connectionCredentials)
         .values({
           providerCode: 'gmail',
-          email: email,
-          credentials: credentials,
+          email,
+          credentials,
         })
-        .returning({ id: connectionCredentials.id })
+        .returning()
         .then((val) => val.at(0) ?? null);
-      if (!result) {
+
+      if (!inserted) {
         throw Error('Failed to insert connection credentials!');
       }
+
       await tx.insert(connections).values({
         environmentId: environment.id,
-        identifier: identifier,
-        connectionCredentials: result.id,
+        identifier,
+        connectionCredentials: inserted.id,
       });
+
+      return inserted;
     }
+  });
+
+  await IMAPListener.add('start-listen', {
+    environmentId: environment.id,
+    identifier: identifier,
+    connection: creds,
   });
 }
 
