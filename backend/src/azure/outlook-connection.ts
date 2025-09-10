@@ -20,7 +20,7 @@ import {
   SendEmail,
   StoredStateToken,
 } from '../utils/types';
-import { azureQueue } from '../queues/azure';
+import { queue } from '../queues';
 
 const scopes = [
   'Mail.Read',
@@ -304,8 +304,8 @@ export async function handleOutlookCallback(
       clientState: process.env.AZURE_WEBHOOK_STATE!,
     });
 
-    await azureQueue.add(
-      'sub-refresh',
+    await queue.add(
+      'azure-sub-refresh',
       {
         environmentName: environment.name,
         environmentId: environment.id,

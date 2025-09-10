@@ -21,7 +21,7 @@ import {
 import { ParsedMail, simpleParser } from 'mailparser';
 import nodemailer from 'nodemailer';
 import { FetchMessageObject } from 'imapflow';
-import { IMAPListener } from '../queues/smtp-imap';
+import { queue } from '../queues';
 
 export async function connectSMTPIMAP(
   environment: Environment,
@@ -123,7 +123,7 @@ export async function connectSMTPIMAP(
     }
   });
 
-  await IMAPListener.add('start-listen', {
+  await queue.add('smtp-imap-start-listen', {
     environmentId: environment.id,
     identifier: identifier,
     connection: creds,

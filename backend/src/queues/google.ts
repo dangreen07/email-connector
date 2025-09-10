@@ -1,4 +1,3 @@
-import { Queue, Worker } from 'bullmq';
 import { getGoogleClient } from '../google/gmail-connection';
 import db from '../db';
 import {
@@ -8,125 +7,116 @@ import {
 } from '../db/schema';
 import { and, eq } from 'drizzle-orm';
 import { google } from 'googleapis';
-import redis, { connection } from '../redis';
+import redis from '../redis';
 import { decrypt } from '../encryption';
 import { GmailCredentials } from '../utils/types';
+import { queue } from '.';
+import { Job } from 'bullmq';
 
-export const googleQueue = new Queue('google-queue', {
-  connection: connection,
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const googleWatchRefresh = async (job: Job<any, any, string>) => {
+  const data = job.data as {
+    identifier: string;
+    environmentId: string;
+    environmentName: string;
+  };
 
-new Worker(
-  'google-queue',
-  async (job) => {
-    if (job.name == 'watch-refresh') {
-      const data = job.data as {
-        identifier: string;
-        environmentId: string;
-        environmentName: string;
-      };
+  const client = await getGoogleClient(
+    data.environmentName,
+    data.environmentId,
+  );
 
-      const client = await getGoogleClient(
-        data.environmentName,
-        data.environmentId,
-      );
+  const connection = await db
+    .select()
+    .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
+    .where(
+      and(
+        eq(connections.identifier, data.identifier),
+        eq(connections.environmentId, data.environmentId),
+        eq(connectionCredentials.providerCode, 'gmail'),
+      ),
+    )
+    .limit(1)
+    .then((val) => val.at(0) ?? null);
 
-      const connection = await db
-        .select()
-        .from(connections)
-        .innerJoin(
-          connectionCredentials,
-          eq(connectionCredentials.id, connections.connectionCredentials),
-        )
-        .where(
-          and(
-            eq(connections.identifier, data.identifier),
-            eq(connections.environmentId, data.environmentId),
-            eq(connectionCredentials.providerCode, 'gmail'),
-          ),
-        )
-        .limit(1)
-        .then((val) => val.at(0) ?? null);
+  if (
+    !connection?.connection_credentials?.accessToken ||
+    !connection.connection_credentials?.refreshToken
+  ) {
+    console.error(
+      'User connection for gmail must have access token and refresh token!',
+    );
+    return;
+  }
+  client.setCredentials({
+    access_token: connection.connection_credentials.accessToken,
+    refresh_token: connection.connection_credentials.refreshToken,
+    expiry_date: connection.connection_credentials.expiresAt?.getTime(),
+  });
 
-      if (
-        !connection?.connection_credentials?.accessToken ||
-        !connection.connection_credentials?.refreshToken
-      ) {
-        console.error(
-          'User connection for gmail must have access token and refresh token!',
-        );
-        return;
-      }
-      client.setCredentials({
-        access_token: connection.connection_credentials.accessToken,
-        refresh_token: connection.connection_credentials.refreshToken,
-        expiry_date: connection.connection_credentials.expiresAt?.getTime(),
-      });
-
-      let topicName = process.env.GOOGLE_TOPIC_NAME!;
-      if (data.environmentName == 'production') {
-        const provider = await db
-          .select()
-          .from(connectedProviders)
-          .where(
-            and(
-              eq(connectedProviders.environmentId, data.environmentId),
-              eq(connectedProviders.enabled, true),
-            ),
-          )
-          .then((val) => val.at(0) ?? null);
-        if (!provider) {
-          return;
-        }
-        const encryptedCredentials = provider.credentials;
-        if (!encryptedCredentials) {
-          return;
-        }
-        const credentials = JSON.parse(
-          decrypt(encryptedCredentials, process.env.CRED_ENCRYPTION_KEY!),
-        ) as GmailCredentials;
-
-        topicName = credentials.topicName;
-      }
-
-      const gmail = google.gmail({ version: 'v1', auth: client });
-
-      const watchResult = await gmail.users.watch({
-        userId: 'me',
-        requestBody: {
-          topicName: topicName,
-          labelIds: ['INBOX'],
-        },
-      });
-
-      const currentDatetime = new Date().getTime();
-
-      const historyId = watchResult.data.historyId;
-      const expirationDate = watchResult.data.expiration;
-
-      if (!historyId || !expirationDate) {
-        return;
-      }
-
-      redis.set(
-        `gmail-history-id:${data.environmentId}:${data.identifier}`,
-        historyId,
-      );
-
-      await googleQueue.add(
-        'watch-refresh',
-        {
-          identifier: data.identifier,
-          environmentId: data.environmentId,
-          environmentName: data.environmentName,
-        },
-        {
-          delay: Number(expirationDate) - currentDatetime - 60 * 60 * 1000, // Subtract 1 hour to ensure no gap period of notifications
-        },
-      );
+  let topicName = process.env.GOOGLE_TOPIC_NAME!;
+  if (data.environmentName == 'production') {
+    const provider = await db
+      .select()
+      .from(connectedProviders)
+      .where(
+        and(
+          eq(connectedProviders.environmentId, data.environmentId),
+          eq(connectedProviders.enabled, true),
+        ),
+      )
+      .then((val) => val.at(0) ?? null);
+    if (!provider) {
+      return;
     }
-  },
-  {
-    connection: connection,
-  },
-);
+    const encryptedCredentials = provider.credentials;
+    if (!encryptedCredentials) {
+      return;
+    }
+    const credentials = JSON.parse(
+      decrypt(encryptedCredentials, process.env.CRED_ENCRYPTION_KEY!),
+    ) as GmailCredentials;
+
+    topicName = credentials.topicName;
+  }
+
+  const gmail = google.gmail({ version: 'v1', auth: client });
+
+  const watchResult = await gmail.users.watch({
+    userId: 'me',
+    requestBody: {
+      topicName: topicName,
+      labelIds: ['INBOX'],
+    },
+  });
+
+  const currentDatetime = new Date().getTime();
+
+  const historyId = watchResult.data.historyId;
+  const expirationDate = watchResult.data.expiration;
+
+  if (!historyId || !expirationDate) {
+    return;
+  }
+
+  redis.set(
+    `gmail-history-id:${data.environmentId}:${data.identifier}`,
+    historyId,
+  );
+
+  await queue.add(
+    'google-watch-refresh',
+    {
+      identifier: data.identifier,
+      environmentId: data.environmentId,
+      environmentName: data.environmentName,
+    },
+    {
+      delay: Number(expirationDate) - currentDatetime - 60 * 60 * 1000, // Subtract 1 hour to ensure no gap period of notifications
+    },
+  );
+};

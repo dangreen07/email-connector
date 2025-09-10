@@ -57,7 +57,7 @@ const tiersRow1: Tier[] = [
     ],
     cta: "Get Growth",
     href: "/sign-up",
-    highlighted: true,
+    highlighted: false,
   },
 ];
 

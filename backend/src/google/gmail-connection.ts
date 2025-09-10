@@ -23,7 +23,7 @@ import {
   StoredStateToken,
 } from '../utils/types';
 import { buildRawEmail } from './send-formatting';
-import { googleQueue } from '../queues/google';
+import { queue } from '../queues';
 
 const requiredScope = [
   'https://www.googleapis.com/auth/userinfo.email',
@@ -315,8 +315,8 @@ export async function handleGmailCallback(
     historyId,
   );
 
-  await googleQueue.add(
-    'watch-refresh',
+  await queue.add(
+    'google-watch-refresh',
     {
       identifier: stateToken.identifier,
       environmentId: stateToken.environmentId,

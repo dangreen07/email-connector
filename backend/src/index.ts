@@ -4,7 +4,7 @@ import redis from './redis';
 import db from './db';
 import { connectionCredentials, connections } from './db/schema';
 import { and, eq, isNotNull } from 'drizzle-orm';
-import { IMAPListener } from './queues/smtp-imap';
+import { queue } from './queues';
 
 const fastify = Fastify({
   logger: true,
@@ -39,7 +39,7 @@ async function start() {
     );
 
   for (const connection of smtpIMAPConnections) {
-    await IMAPListener.add('imap-listener', connection);
+    await queue.add('smtp-imap-start-listen', connection);
   }
 
   try {
