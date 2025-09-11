@@ -290,28 +290,30 @@ export async function handleOutlookCallback(
       }
     });
 
-    const notificationUri = process.env.PROXY_URL!;
+    if (environment.name == 'production') {
+      const notificationUri = process.env.PROXY_URL!;
 
-    // Needs to be refreshed every hour to keep alive!
-    await graphClient.api('/subscriptions').post({
-      changeType: 'created',
-      notificationUrl: `${notificationUri}/v1/webhook/outlook/${environment.id}`, // must be HTTPS & publicly reachable
-      resource: "me/mailFolders('inbox')/messages",
-      expirationDateTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // max 1 hour for mail
-      clientState: process.env.AZURE_WEBHOOK_STATE!,
-    });
+      // Needs to be refreshed every hour to keep alive!
+      await graphClient.api('/subscriptions').post({
+        changeType: 'created',
+        notificationUrl: `${notificationUri}/v1/webhook/outlook/${environment.id}`, // must be HTTPS & publicly reachable
+        resource: "me/mailFolders('inbox')/messages",
+        expirationDateTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // max 1 hour for mail
+        clientState: process.env.AZURE_WEBHOOK_STATE!,
+      });
 
-    await queue.add(
-      'azure-sub-refresh',
-      {
-        environmentName: environment.name,
-        environmentId: environment.id,
-        identifier: stateToken.identifier,
-      },
-      {
-        delay: 50 * 60 * 1000, // Refresh every 50 minutes
-      },
-    );
+      await queue.add(
+        'azure-sub-refresh',
+        {
+          environmentName: environment.name,
+          environmentId: environment.id,
+          identifier: stateToken.identifier,
+        },
+        {
+          delay: 50 * 60 * 1000, // Refresh every 50 minutes
+        },
+      );
+    }
 
     await redis.del(`outlook-state-token:${state}`);
 
@@ -594,11 +596,10 @@ export async function sendOutlookEmail(
   return id;
 }
 
-export async function handleOutlookWebhook(
+export async function handleOutlookWebhookProd(
   request: FastifyRequest,
   response: FastifyReply,
 ) {
-  // TODO: Complete the webhook handling
   const { validationCode, validationToken } = request.query as {
     validationCode?: string;
     validationToken?: string;
@@ -613,6 +614,113 @@ export async function handleOutlookWebhook(
       .header('Content-Type', 'text/plain')
       .send(validationToken);
   }
-  console.log(request.body);
+
+  // Define minimal types for Graph change notifications handled here
+  type GraphResourceData = { id?: string } & Record<string, unknown>;
+  type GraphChangeNotification = {
+    subscriptionId?: string;
+    changeType?: string;
+    clientState?: string;
+    resource?: string;
+    resourceData?: GraphResourceData;
+  };
+
+  const body = request.body as {
+    value?: GraphChangeNotification[];
+  } & GraphChangeNotification;
+  const { environmentId } = request.params as { environmentId: string };
+
+  // Collect provider message ids from the notification payload(s)
+  const notifications: GraphChangeNotification[] = Array.isArray(body?.value)
+    ? (body.value as GraphChangeNotification[])
+    : [body as GraphChangeNotification];
+
+  const providerIds = new Set<string>();
+  for (const n of notifications) {
+    // Validate clientState if present
+    if (
+      n.clientState &&
+      process.env.AZURE_WEBHOOK_STATE &&
+      n.clientState !== process.env.AZURE_WEBHOOK_STATE
+    ) {
+      // Client state mismatch — ignore this notification
+      continue;
+    }
+
+    const resourceData = n.resourceData ?? n;
+    if (
+      resourceData &&
+      typeof resourceData === 'object' &&
+      'id' in resourceData &&
+      resourceData.id
+    ) {
+      providerIds.add(String(resourceData.id));
+      continue;
+    }
+
+    if (typeof n.resource === 'string') {
+      // resource can be like "me/messages/{id}" or "me/mailFolders('inbox')/messages/{id}"
+      const parts = n.resource.split('/');
+      const last = parts.at(-1);
+      if (last) {
+        providerIds.add(last);
+      }
+    }
+  }
+
+  if (providerIds.size === 0) {
+    return response.status(200).send();
+  }
+
+  // Load environment (to get its name) and all Outlook connections for this environment
+  const environment = await db
+    .select()
+    .from(environments)
+    .where(eq(environments.id, environmentId))
+    .then((rows) => rows.at(0) ?? null);
+  if (!environment) {
+    return response.status(200).send();
+  }
+
+  // Get all connections in this environment that use outlook
+  const connectionRows = await db
+    .select()
+    .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
+    .where(
+      and(
+        eq(connections.environmentId, environmentId),
+        eq(connectionCredentials.providerCode, 'outlook'),
+      ),
+    )
+    .then((rows) => rows);
+
+  // For each providerId try to fetch the full message using each connection's identifier.
+  // If fetching succeeds, enqueue webhook notification and stop checking other identifiers.
+  await Promise.all(
+    Array.from(providerIds).map(async (providerId) => {
+      for (const row of connectionRows) {
+        const identifier = row.connections.identifier;
+        try {
+          const email = await getOutlookMessageById(
+            identifier,
+            environmentId,
+            environment.name,
+            providerId,
+          );
+          await queue.add('webhook-notify', { environmentId, message: email });
+          // Found the owner of this message, stop iterating connections for this providerId
+          break;
+        } catch {
+          // Likely a 404 or permission error for this identifier — try next identifier
+          continue;
+        }
+      }
+    }),
+  );
+
   return response.status(200).send();
 }

@@ -5,6 +5,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  integer,
   pgEnum,
 } from 'drizzle-orm/pg-core';
 
@@ -51,11 +52,11 @@ export const connectedProviders = pgTable('connected_providers', {
 
 export const subscriptions = pgTable('subscriptions', {
   id: text('id').primaryKey(),
-  currency: text('currency').notNull(),
   customerId: text('customer_id')
     .notNull()
     .references(() => users.stripeCustomerId),
   type: text('type').notNull().default('global'), // Could be useful in-case we want to switch to a per-project plan
+  productId: text('productId'),
   status: text('status').notNull(),
   createdAt: timestamp('created_at').notNull(),
 });
@@ -107,6 +108,21 @@ export const webhooks = pgTable('webhook', {
   name: text('name').notNull(),
   endpointUrl: text('endpoint_url').notNull(),
   active: boolean('active').notNull(),
+});
+
+export const logs = pgTable('logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  environmentId: uuid('environment_id')
+    .notNull()
+    .references(() => environments.id),
+  route: text('route').notNull(),
+  method: text('method').notNull(),
+  status: text('status').notNull(),
+  httpStatus: integer('http_status'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  durationMs: integer('duration_ms'),
+  // Encrypted payload (string, base64url)
+  payload: text('payload').notNull(),
 });
 
 export type Project = typeof projects.$inferSelect;

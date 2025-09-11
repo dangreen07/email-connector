@@ -288,43 +288,47 @@ export async function handleGmailCallback(
     return response.redirect(stateToken.redirectAfterAuth);
   }
 
-  const gmail = google.gmail({ version: 'v1', auth: client });
+  if (environment.name == 'production') {
+    const gmail = google.gmail({ version: 'v1', auth: client });
 
-  const watchResult = await gmail.users.watch({
-    userId: 'me',
-    requestBody: {
-      topicName: process.env.GOOGLE_TOPIC_NAME!,
-      labelIds: ['INBOX'],
-    },
-  });
+    const watchResult = await gmail.users.watch({
+      userId: 'me',
+      requestBody: {
+        topicName: process.env.GOOGLE_TOPIC_NAME!,
+        labelIds: ['INBOX'],
+      },
+    });
 
-  const currentDatetime = new Date().getTime();
+    const currentDatetime = new Date().getTime();
 
-  const historyId = watchResult.data.historyId;
-  const expirationDate = watchResult.data.expiration;
-  if (!historyId || !expirationDate) {
-    if (environment.name == 'production') {
-      throw Error('Failed to set up webhook subscription!');
+    const historyId = watchResult.data.historyId;
+    const expirationDate = watchResult.data.expiration;
+    if (!historyId || !expirationDate) {
+      if (environment.name == 'production') {
+        throw Error('Failed to set up webhook subscription!');
+      }
+      throw Error(
+        'Failed to set up webhook subscription, contact site support!',
+      );
     }
-    throw Error('Failed to set up webhook subscription, contact site support!');
+
+    redis.set(
+      `gmail-history-id:${stateToken.environmentId}:${stateToken.identifier}`,
+      historyId,
+    );
+
+    await queue.add(
+      'google-watch-refresh',
+      {
+        identifier: stateToken.identifier,
+        environmentId: stateToken.environmentId,
+        environmentName: environment.name,
+      },
+      {
+        delay: Number(expirationDate) - currentDatetime - 60 * 60 * 1000, // Subtract 1 hour to ensure no gap period of notifications
+      },
+    );
   }
-
-  redis.set(
-    `gmail-history-id:${stateToken.environmentId}:${stateToken.identifier}`,
-    historyId,
-  );
-
-  await queue.add(
-    'google-watch-refresh',
-    {
-      identifier: stateToken.identifier,
-      environmentId: stateToken.environmentId,
-      environmentName: environment.name,
-    },
-    {
-      delay: Number(expirationDate) - currentDatetime - 60 * 60 * 1000, // Subtract 1 hour to ensure no gap period of notifications
-    },
-  );
 
   return response.redirect(stateToken.redirectAfterAuth);
 }

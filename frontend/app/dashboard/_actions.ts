@@ -433,3 +433,43 @@ async function updateWithCredentials(
       )
     );
 }
+
+export async function regenerateKeys(environmentId: string) {
+  console.log(environmentId);
+  const { userId } = await auth();
+
+  if (!userId) {
+    return { error: "Unauthorized" } as const;
+  }
+
+  const name = await db
+    .select({ name: environments.name })
+    .from(environments)
+    .innerJoin(projects, eq(projects.id, environments.projectId))
+    .where(and(eq(projects.userId, userId), eq(environments.id, environmentId)))
+    .then((val) => val.at(0) ?? null);
+  if (!name) {
+    return { error: "Unauthorized" } as const;
+  }
+  let publishableKey = "";
+  let secretKey = "";
+  if (name.name == "production") {
+    publishableKey = generateApiKey("pk_prod");
+    secretKey = generateApiKey("sk_prod");
+  } else {
+    publishableKey = generateApiKey("pk_dev");
+    secretKey = generateApiKey("sk_dev");
+  }
+  await db
+    .update(environments)
+    .set({
+      publishableKey,
+      secretKey,
+    })
+    .where(eq(environments.id, environmentId));
+
+  return {
+    publishableKey,
+    secretKey,
+  };
+}

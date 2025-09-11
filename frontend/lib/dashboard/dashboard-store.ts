@@ -199,8 +199,8 @@ export const createDashboardStore = (
     setProjectId: (projectId) => set({ projectId }),
     setEnvironmentId: (environmentId) => set({ environmentId }),
 
-    setPublishableKey: (publishableKey) => set({ publishableKey }), // Not currently allowing users to change
-    setSecretKey: (secretKey) => set({ secretKey }), // Not currently allowing users to change
+    setPublishableKey: (publishableKey) => set({ publishableKey }), // Can only be edited in server action
+    setSecretKey: (secretKey) => set({ secretKey }), // Can only be edited in server action
     setOutlookEnabled: (outlookEnabled) =>
       set({ outlookEnabled, changed: true }),
     setGmailEnabled: (gmailEnabled) => set({ gmailEnabled, changed: true }),

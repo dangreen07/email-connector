@@ -13,9 +13,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useDashboardStore } from "@/lib/dashboard/dashboard-store-provider";
 import { toast } from "sonner";
+import { regenerateKeys } from "@/app/dashboard/_actions";
 
 export default function ApiKeysDisplay() {
-  const { publishableKey, secretKey } = useDashboardStore((state) => state);
+  const {
+    publishableKey,
+    secretKey,
+    environmentId,
+    setPublishableKey,
+    setSecretKey,
+  } = useDashboardStore((state) => state);
 
   const handleCopy = async (value: string, message: string) => {
     try {
@@ -24,9 +31,15 @@ export default function ApiKeysDisplay() {
     } catch {}
   };
 
-  const handleRegenerate = () => {
-    // TODO: Implement regenerate keys functionality
-    toast("Not implemented yet!");
+  const handleRegenerate = async () => {
+    const keys = await regenerateKeys(environmentId);
+    if (!keys.error) {
+      setPublishableKey(keys.publishableKey);
+      setSecretKey(keys.secretKey);
+      toast("API keys regenerated! Make sure to update your API calls!");
+    } else {
+      toast("Failed to regenerate API Keys!");
+    }
   };
 
   return (
