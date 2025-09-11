@@ -129,6 +129,7 @@ export type Project = typeof projects.$inferSelect;
 export type Environment = typeof environments.$inferSelect;
 export type ConnectedProvider = typeof connectedProviders.$inferSelect;
 export type ConnectionCredentials = typeof connectionCredentials.$inferSelect;
+export type Webhook = typeof webhooks.$inferSelect;
 
 export interface FullProject extends Project {
   environments: Environment[];
