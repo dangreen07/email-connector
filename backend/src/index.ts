@@ -2,12 +2,75 @@ import Fastify from 'fastify';
 import v1Routes from './routes/v1';
 import redis from './redis';
 import db from './db';
-import { connectionCredentials, connections } from './db/schema';
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { connectionCredentials, connections, environments } from './db/schema';
+import { and, eq, isNotNull, or } from 'drizzle-orm';
 import { queue } from './queues';
 
 const fastify = Fastify({
   logger: true,
+});
+
+const LOGGED_ENDPOINTS = [
+  '/v1/connection',
+  '/v1/messages',
+  '/v1/messages/by-id',
+];
+
+fastify.addHook('onResponse', async (req, reply) => {
+  const route = req.originalUrl ?? req.url;
+  if (!LOGGED_ENDPOINTS.includes(route)) {
+    return; // skip logging for this route
+  }
+  const headers = req.headers;
+  const authorization = headers.authorization;
+  if (!authorization) {
+    return reply.status(401).send({ error: 'Missing authorization header' });
+  }
+  const key = authorization.split(' ')[1];
+  if (!key) {
+    return; // Skip logging for unauthorized endpoints
+  }
+
+  let environmentId: string | null = null;
+
+  // Try redis first
+  environmentId = await redis.get(`apikey:${key}:env`);
+
+  // Fallback to postgres
+  if (!environmentId) {
+    const result = await db
+      .select({ id: environments.id })
+      .from(environments)
+      .where(
+        or(
+          eq(environments.publishableKey, key),
+          eq(environments.secretKey, key),
+        ),
+      )
+      .then((val) => val.at(0) ?? null);
+    if (!result) {
+      return; // Failed to find in db
+    }
+    environmentId = result.id;
+    // Store in redis with a TTL
+    await redis.set(`apikey:${key}:env`, environmentId, {
+      expiration: {
+        type: 'EX',
+        value: 60 * 60, // 1 hour TTL
+      },
+    });
+  }
+  await redis.incr(`api-calls:${environmentId}`); // Record the API calls a user has made
+  await queue.add('log', {
+    environmentId,
+    route,
+    method: req.method,
+    statusCode: reply.statusCode,
+    time: new Date(),
+    duration: reply.elapsedTime,
+    query: req.query,
+    body: req.body,
+  });
 });
 
 fastify.register(v1Routes, { prefix: '/v1' });

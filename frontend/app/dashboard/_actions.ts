@@ -435,7 +435,6 @@ async function updateWithCredentials(
 }
 
 export async function regenerateKeys(environmentId: string) {
-  console.log(environmentId);
   const { userId } = await auth();
 
   if (!userId) {

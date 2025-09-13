@@ -7,6 +7,7 @@ import { smtpImapListen } from './smtp-imap';
 import db from '../db';
 import { webhooks } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { logJob } from './logging';
 
 export const queue = new Queue('queue', {
   connection: connection,
@@ -45,6 +46,8 @@ new Worker(
           });
         }),
       );
+    } else if (job.name == 'log') {
+      await logJob(job);
     }
   },
   {

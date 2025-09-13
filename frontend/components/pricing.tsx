@@ -1,10 +1,10 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
-import { useTransition } from "react";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import Container from "./Container";
-import { startCheckout } from "@/app/_actions";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import CheckoutButton from "./checkout-button";
+import { createCheckoutLink } from "@/utils/stripe/actions";
 
 type Tier = {
   name: "Basic" | "Growth" | "Scale";
@@ -65,27 +65,23 @@ const tiersRow1: Tier[] = [
   },
 ];
 
-const TierCard = (tier: Tier) => {
-  const { isSignedIn } = useAuth();
-  const [isPending, startTransition] = useTransition();
+const TierCard = ({
+  tier,
+  plan,
+}: {
+  tier: Tier;
+  plan: "Basic" | "Growth" | "Scale" | null;
+}) => {
+  const tiers = ["Basic", "Growth", "Scale"] as const;
 
-  const router = useRouter();
+  const getActionLabel = () => {
+    if (!plan) return tier.cta;
+    const currentIndex = tiers.indexOf(plan);
+    const targetIndex = tiers.indexOf(tier.name as (typeof tiers)[number]);
 
-  const handleClick = () => {
-    if (isSignedIn) {
-      // Logged in → just go to sign-up page (or dashboard billing)
-      router.push(tier.href);
-    } else {
-      // Not logged in → run server action
-      startTransition(async () => {
-        try {
-          const url = await startCheckout(tier.name);
-          router.push(url);
-        } catch (err) {
-          console.error("Checkout error:", err);
-        }
-      });
-    }
+    if (targetIndex > currentIndex) return `Upgrade to ${tier.name}`;
+    if (targetIndex < currentIndex) return `Downgrade to ${tier.name}`;
+    return "Current Plan";
   };
 
   return (
@@ -102,6 +98,7 @@ const TierCard = (tier: Tier) => {
           Popular
         </div>
       )}
+
       <h3 className="text-base font-semibold">{tier.name}</h3>
       <div className="mt-2 flex items-baseline gap-1">
         <span className="text-3xl font-bold">{tier.price}</span>
@@ -110,6 +107,7 @@ const TierCard = (tier: Tier) => {
         )}
       </div>
       <p className="mt-2 text-sm text-foreground/80">{tier.description}</p>
+
       <ul className="mt-4 space-y-2 text-sm text-foreground/80">
         {tier.features.map((f) => (
           <li key={f} className="flex items-start gap-2">
@@ -128,26 +126,41 @@ const TierCard = (tier: Tier) => {
           </li>
         ))}
       </ul>
+
       <div className="mt-auto pt-6">
-        <button
-          onClick={handleClick}
-          disabled={isPending}
-          className={`inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500 ${
-            tier.highlighted
-              ? "bg-indigo-600 text-white hover:bg-indigo-500"
-              : "border border-foreground/20 text-foreground/90 hover:border-foreground/40"
-          }`}
-        >
-          {isPending ? "Loading..." : tier.cta}
-        </button>
+        <SignedIn>
+          <form action={async () => createCheckoutLink(tier.name)}>
+            <CheckoutButton
+              highlighted={tier.highlighted}
+              cta={getActionLabel()}
+              disabled={getActionLabel() === "Current Plan"}
+            />
+          </form>
+        </SignedIn>
+        <SignedOut>
+          <Link
+            href={tier.href}
+            className={`inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500 ${
+              tier.highlighted
+                ? "bg-indigo-600 text-white hover:bg-indigo-500"
+                : "border border-foreground/20 text-foreground/90 hover:border-foreground/40"
+            }`}
+          >
+            {getActionLabel()}
+          </Link>
+        </SignedOut>
       </div>
     </div>
   );
 };
 
-export default function Pricing() {
+export default function Pricing({
+  plan,
+}: {
+  plan: "Basic" | "Growth" | "Scale" | null;
+}) {
   return (
-    <section id="pricing" className="py-16 sm:py-24">
+    <section id="pricing" className="py-8 sm:py-12">
       <Container>
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -162,7 +175,7 @@ export default function Pricing() {
         {/* Row 1: 3 cards */}
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 items-stretch justify-items-center">
           {tiersRow1.map((tier) => (
-            <TierCard key={tier.name} {...tier} />
+            <TierCard key={tier.name} tier={tier} plan={plan} />
           ))}
         </div>
 

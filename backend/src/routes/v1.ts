@@ -31,7 +31,6 @@ import {
   sendSMTPIMAPEmail,
 } from '../smtp-imap/smtp-imap-connection';
 import { SendEmail, SMTPIMAPCredentials } from '../utils/types';
-import { insertLog } from '../utils/logs';
 
 export default async function v1Routes(fastify: FastifyInstance) {
   // Returns a link to the provider's OAuth page with a callback URL to our server
@@ -88,7 +87,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
     if (!environment) {
       return response.status(401).send({ error: 'Invalid publishable key' });
     }
-    const _log_start = Date.now();
 
     // Check if the provider is enabled
     const connectedProvider = await db
@@ -120,37 +118,10 @@ export default async function v1Routes(fastify: FastifyInstance) {
             redirectAfterAuth,
           );
           if (!authUrl) {
-            await insertLog({
-              environmentId: environment.id,
-              route: '/connection',
-              method: 'POST',
-              status: 'error',
-              httpStatus: 500,
-              durationMs: Date.now() - _log_start,
-              payloadObject: {
-                providerCode,
-                identifier,
-                error: 'Failed to get Outlook OAuth link',
-              },
-            }).catch((err) => request.log.error(err, 'Failed to insert log'));
             return response
               .status(500)
               .send({ error: 'Failed to get Outlook OAuth link' });
           }
-          insertLog({
-            environmentId: environment.id,
-            route: '/connection',
-            method: 'POST',
-            status: 'success',
-            httpStatus: 200,
-            durationMs: Date.now() - _log_start,
-            payloadObject: {
-              providerCode,
-              identifier,
-              redirectAfterAuth,
-              authUrl,
-            },
-          }).catch((err) => request.log.error(err, 'Failed to insert log'));
           return response.status(200).send({ authUrl });
         case 'gmail':
           authUrl = await getGmailOauthLink(
@@ -159,53 +130,13 @@ export default async function v1Routes(fastify: FastifyInstance) {
             redirectAfterAuth,
           );
           if (!authUrl) {
-            await insertLog({
-              environmentId: environment.id,
-              route: '/connection',
-              method: 'POST',
-              status: 'error',
-              httpStatus: 500,
-              durationMs: Date.now() - _log_start,
-              payloadObject: {
-                providerCode,
-                identifier,
-                error: 'Failed to get Gmail OAuth link',
-              },
-            }).catch((err) => request.log.error(err, 'Failed to insert log'));
             return response
               .status(500)
               .send({ error: 'Failed to get Gmail OAuth link' });
           }
-          insertLog({
-            environmentId: environment.id,
-            route: '/connection',
-            method: 'POST',
-            status: 'success',
-            httpStatus: 200,
-            durationMs: Date.now() - _log_start,
-            payloadObject: {
-              providerCode,
-              identifier,
-              redirectAfterAuth,
-              authUrl,
-            },
-          }).catch((err) => request.log.error(err, 'Failed to insert log'));
           return response.status(200).send({ authUrl });
         case 'smtp-imap':
           if (!smtpCredentials) {
-            await insertLog({
-              environmentId: environment.id,
-              route: '/connection',
-              method: 'POST',
-              status: 'error',
-              httpStatus: 400,
-              durationMs: Date.now() - _log_start,
-              payloadObject: {
-                providerCode,
-                identifier,
-                error: 'Missing SMTP/IMAP connection parameters in body',
-              },
-            }).catch((err) => request.log.error(err, 'Failed to insert log'));
             return response.status(400).send({
               error: 'Missing SMTP/IMAP connection parameters in body',
             });
@@ -213,33 +144,11 @@ export default async function v1Routes(fastify: FastifyInstance) {
           // Directly connect without OAuth
           try {
             await connectSMTPIMAP(environment, identifier, smtpCredentials);
-            insertLog({
-              environmentId: environment.id,
-              route: '/connection',
-              method: 'POST',
-              status: 'success',
-              httpStatus: 200,
-              durationMs: Date.now() - _log_start,
-              payloadObject: {
-                providerCode,
-                identifier,
-                message: 'SMTP/IMAP connected successfully',
-              },
-            }).catch((err) => request.log.error(err, 'Failed to insert log'));
             return response
               .status(200)
               .send({ message: 'SMTP/IMAP connected successfully' });
           } catch (err) {
             request.log.error(err, 'Failed to connect SMTP/IMAP');
-            await insertLog({
-              environmentId: environment.id,
-              route: '/connection',
-              method: 'POST',
-              status: 'error',
-              httpStatus: 500,
-              durationMs: Date.now() - _log_start,
-              payloadObject: { providerCode, identifier, error: String(err) },
-            }).catch((e) => request.log.error(e, 'Failed to insert log'));
             return response
               .status(500)
               .send({ error: 'Failed to connect SMTP/IMAP' });
@@ -314,7 +223,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
         .send({ error: 'Could not find a valid connection' });
     }
 
-    const _log_start = Date.now();
     switch (providerCode) {
       case 'outlook':
         try {
@@ -323,15 +231,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
             connection.environmentId,
             limit,
           );
-          insertLog({
-            environmentId: connection.environmentId,
-            route: '/messages',
-            method: 'GET',
-            status: 'success',
-            httpStatus: 200,
-            durationMs: Date.now() - _log_start,
-            payloadObject: { provider: 'outlook', identifier, messages },
-          }).catch((err) => request.log.error(err, 'Failed to insert log'));
           return response.status(200).send({ messages });
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
@@ -340,19 +239,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
             err?.message || 'Failed to fetch Outlook messages';
           const statusCode = err?.statusCode || 500;
           request.log.error(err, errorMessage);
-          insertLog({
-            environmentId: connection.environmentId,
-            route: '/messages',
-            method: 'GET',
-            status: 'error',
-            httpStatus: statusCode,
-            durationMs: Date.now() - _log_start,
-            payloadObject: {
-              provider: 'outlook',
-              identifier,
-              error: errorMessage,
-            },
-          }).catch((e) => request.log.error(e, 'Failed to insert log'));
           return response
             .status(statusCode)
             .send({ error: errorMessage, code: err?.code });
@@ -365,34 +251,12 @@ export default async function v1Routes(fastify: FastifyInstance) {
             connection.environmentId,
             limit,
           );
-          insertLog({
-            environmentId: connection.environmentId,
-            route: '/messages',
-            method: 'GET',
-            status: 'success',
-            httpStatus: 200,
-            durationMs: Date.now() - _log_start,
-            payloadObject: { provider: 'gmail', identifier, messages },
-          }).catch((err) => request.log.error(err, 'Failed to insert log'));
           return response.status(200).send({ messages });
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
           const errorMessage = err?.message || 'Failed to fetch Gmail messages';
           const statusCode = err?.statusCode || 500;
           request.log.error(err, errorMessage);
-          insertLog({
-            environmentId: connection.environmentId,
-            route: '/messages',
-            method: 'GET',
-            status: 'error',
-            httpStatus: statusCode,
-            durationMs: Date.now() - _log_start,
-            payloadObject: {
-              provider: 'gmail',
-              identifier,
-              error: errorMessage,
-            },
-          }).catch((e) => request.log.error(e, 'Failed to insert log'));
           return response
             .status(statusCode)
             .send({ error: errorMessage, code: err?.code });
@@ -404,32 +268,10 @@ export default async function v1Routes(fastify: FastifyInstance) {
             connection.environmentId,
             limit,
           );
-          insertLog({
-            environmentId: connection.environmentId,
-            route: '/messages',
-            method: 'GET',
-            status: 'success',
-            httpStatus: 200,
-            durationMs: Date.now() - _log_start,
-            payloadObject: { provider: 'smtp-imap', identifier, messages },
-          }).catch((err) => request.log.error(err, 'Failed to insert log'));
           return response.status(200).send({ messages });
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
           console.error(err);
-          insertLog({
-            environmentId: connection.environmentId,
-            route: '/messages',
-            method: 'GET',
-            status: 'error',
-            httpStatus: 500,
-            durationMs: Date.now() - _log_start,
-            payloadObject: {
-              provider: 'smtp-imap',
-              identifier,
-              error: String(err),
-            },
-          }).catch((e) => request.log.error(e, 'Failed to insert log'));
           return response
             .status(500)
             .send({ error: 'Failed to fetch SMTP/IMAP messages' });
@@ -485,7 +327,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
         .status(401)
         .send({ error: 'Could not find a valid connection' });
     }
-    const _log_start_by_id = Date.now();
 
     const { providerId, provider, identifier, environmentId } = payload;
 
@@ -498,20 +339,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
             environment.name,
             providerId,
           );
-          insertLog({
-            environmentId,
-            route: '/messages/by-id',
-            method: 'GET',
-            status: 'success',
-            httpStatus: 200,
-            durationMs: Date.now() - _log_start_by_id,
-            payloadObject: {
-              provider: 'outlook',
-              identifier,
-              messageId: providerId,
-              message,
-            },
-          }).catch((err) => request.log.error(err, 'Failed to insert log'));
           return response.status(200).send({ message });
         }
         case 'gmail': {
@@ -520,20 +347,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
             environmentId,
             providerId,
           );
-          insertLog({
-            environmentId,
-            route: '/messages/by-id',
-            method: 'GET',
-            status: 'success',
-            httpStatus: 200,
-            durationMs: Date.now() - _log_start_by_id,
-            payloadObject: {
-              provider: 'gmail',
-              identifier,
-              messageId: providerId,
-              message,
-            },
-          }).catch((err) => request.log.error(err, 'Failed to insert log'));
           return response.status(200).send({ message });
         }
         case 'smtp-imap': {
@@ -542,20 +355,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
             environmentId,
             providerId,
           );
-          insertLog({
-            environmentId,
-            route: '/messages/by-id',
-            method: 'GET',
-            status: 'success',
-            httpStatus: 200,
-            durationMs: Date.now() - _log_start_by_id,
-            payloadObject: {
-              provider: 'smtp-imap',
-              identifier,
-              messageId: providerId,
-              message,
-            },
-          }).catch((err) => request.log.error(err, 'Failed to insert log'));
           return response.status(200).send({ message });
         }
         default:
@@ -601,7 +400,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
         .status(401)
         .send({ error: 'Could not find a valid connection' });
     }
-    const _log_start_post = Date.now();
 
     let result = '';
     switch (query.providerCode) {
@@ -612,20 +410,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
           environment.name,
           email,
         );
-        insertLog({
-          environmentId: environment.id,
-          route: '/messages',
-          method: 'POST',
-          status: 'success',
-          httpStatus: 200,
-          durationMs: Date.now() - _log_start_post,
-          payloadObject: {
-            provider: 'gmail',
-            identifier: query.identifier,
-            email,
-            emailId: result,
-          },
-        }).catch((err) => request.log.error(err, 'Failed to insert log'));
         return response.status(200).send({ emailId: result });
       case 'outlook':
         result = await sendOutlookEmail(
@@ -634,20 +418,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
           environment.name,
           email,
         );
-        insertLog({
-          environmentId: environment.id,
-          route: '/messages',
-          method: 'POST',
-          status: 'success',
-          httpStatus: 200,
-          durationMs: Date.now() - _log_start_post,
-          payloadObject: {
-            provider: 'outlook',
-            identifier: query.identifier,
-            email,
-            emailId: result,
-          },
-        }).catch((err) => request.log.error(err, 'Failed to insert log'));
         return response.status(200).send({ emailId: result });
       case 'smtp-imap':
         result = await sendSMTPIMAPEmail(
@@ -655,20 +425,6 @@ export default async function v1Routes(fastify: FastifyInstance) {
           environment.id,
           email,
         );
-        insertLog({
-          environmentId: environment.id,
-          route: '/messages',
-          method: 'POST',
-          status: 'success',
-          httpStatus: 200,
-          durationMs: Date.now() - _log_start_post,
-          payloadObject: {
-            provider: 'smtp-imap',
-            identifier: query.identifier,
-            email,
-            emailId: result,
-          },
-        }).catch((err) => request.log.error(err, 'Failed to insert log'));
         return response.status(200).send({ emailId: result });
       default:
         return response

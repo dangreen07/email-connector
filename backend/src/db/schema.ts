@@ -54,16 +54,19 @@ export const subscriptions = pgTable('subscriptions', {
   id: text('id').primaryKey(),
   customerId: text('customer_id')
     .notNull()
-    .references(() => users.stripeCustomerId),
+    .references(() => users.stripeCustomerId)
+    .unique(),
   type: text('type').notNull().default('global'), // Could be useful in-case we want to switch to a per-project plan
   productId: text('productId'),
   status: text('status').notNull(),
-  createdAt: timestamp('created_at').notNull(),
+  billingCycleAnchor: timestamp('billing_cycle_anchor').notNull(),
+  currentPeriodStart: timestamp('current_period_start').notNull(),
+  currentPeriodEnd: timestamp('current_period_end').notNull(),
 });
 
 export const users = pgTable('users', {
   clerkUserId: text('clerk_user_id').primaryKey(),
-  stripeCustomerId: text('stripe_customer_id').unique(),
+  stripeCustomerId: text('stripe_customer_id').unique().notNull(),
 });
 
 export const connections = pgTable(
@@ -117,12 +120,11 @@ export const logs = pgTable('logs', {
     .references(() => environments.id),
   route: text('route').notNull(),
   method: text('method').notNull(),
-  status: text('status').notNull(),
-  httpStatus: integer('http_status'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  durationMs: integer('duration_ms'),
-  // Encrypted payload (string, base64url)
-  payload: text('payload').notNull(),
+  statusCode: integer('status_code').notNull(),
+  requestAt: timestamp('requestAt').notNull(),
+  duration: integer('duration').notNull(),
+  query: text('query'),
+  body: text('body'),
 });
 
 export type Project = typeof projects.$inferSelect;
