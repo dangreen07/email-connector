@@ -24,6 +24,9 @@ export async function createCheckoutLink(plan: "Basic" | "Growth" | "Scale") {
     const customer = await stripe.customers.create({
       name: `${user.firstName} ${user.lastName}`,
       email: email.emailAddress,
+      metadata: {
+        userId: user.id, // DO NOT FORGET THIS
+      },
     });
 
     userRecord = await db
@@ -60,15 +63,14 @@ export async function createCheckoutLink(plan: "Basic" | "Growth" | "Scale") {
   }
 
   // Sync before doing anything
-  await syncWithStripe(user.id);
+  await syncWithStripe(userRecord.stripeCustomerId);
 
   // Check existing subscription
   const subscription = await db
-    .select({ subscriptions })
+    .select()
     .from(subscriptions)
-    .innerJoin(users, eq(users.stripeCustomerId, subscriptions.customerId))
-    .where(eq(users.clerkUserId, user.id))
-    .then((val) => val.at(0)?.subscriptions ?? null);
+    .where(eq(subscriptions.customerId, userRecord.stripeCustomerId))
+    .then((val) => val.at(0) ?? null);
 
   if (!subscription || subscription.status == "cancelled") {
     // Create new subscription via Checkout
@@ -111,21 +113,10 @@ export async function createCheckoutLink(plan: "Basic" | "Growth" | "Scale") {
   }
 }
 
-export async function syncWithStripe(userId: string) {
-  // Check if customer exists
-  const customer = await db
-    .select()
-    .from(users)
-    .where(eq(users.clerkUserId, userId))
-    .then((val) => val.at(0) ?? null);
-
-  if (!customer) {
-    return;
-  }
-
+export async function syncWithStripe(customerId: string) {
   const subscription = await stripe.subscriptions
     .list({
-      customer: customer.stripeCustomerId,
+      customer: customerId,
     })
     .then((val) => val.data.at(0) ?? null); // Currently only allowing one subscription
   if (!subscription) {
@@ -136,7 +127,7 @@ export async function syncWithStripe(userId: string) {
         productId: null,
         status: "cancelled",
       })
-      .where(eq(subscriptions.customerId, customer.stripeCustomerId));
+      .where(eq(subscriptions.customerId, customerId));
     return;
   }
   const lineItems =
@@ -154,7 +145,7 @@ export async function syncWithStripe(userId: string) {
     .insert(subscriptions)
     .values({
       id: subscription.id,
-      customerId: customer.stripeCustomerId,
+      customerId: customerId,
       productId: productId.toString(),
       status: subscription.status.toString(),
       billingCycleAnchor: new Date(subscription.billing_cycle_anchor * 1000),
