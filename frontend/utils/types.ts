@@ -26,3 +26,14 @@ export type DashboardProvider =
         topicName: string;
       };
     };
+
+export type Tier = {
+  name: "Basic" | "Growth" | "Scale";
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  cta: string;
+  href: string;
+  highlighted?: boolean;
+};

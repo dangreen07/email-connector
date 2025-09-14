@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import db from "../db";
 import { subscriptions, users } from "../db/schema";
 import { stripe } from ".";
-import { currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect, RedirectType } from "next/navigation";
 
 export async function createCheckoutLink(plan: "Basic" | "Growth" | "Scale") {
@@ -163,4 +163,27 @@ export async function syncWithStripe(customerId: string) {
         currentPeriodEnd: new Date(lineItems.current_period_end * 1000),
       },
     });
+}
+
+export async function CreateCustomerPortal(): Promise<string | undefined> {
+  const { userId } = await auth();
+  if (!userId) {
+    console.log("No user!");
+    return; // How did we get here?
+  }
+  const customer = await db
+    .select()
+    .from(users)
+    .where(eq(users.clerkUserId, userId))
+    .then((val) => val.at(0) ?? null);
+  if (!customer) {
+    console.log("No Customer!");
+    return "/pricing"; // Go to the pricing page!
+  }
+  const session = await stripe.billingPortal.sessions.create({
+    customer: customer.stripeCustomerId,
+    return_url: `${process.env.BASE_URL}/`,
+  });
+
+  return session.url;
 }

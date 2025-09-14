@@ -8,7 +8,7 @@ import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 
 export default async function Home() {
-  const { userId } = await auth();
+  const { userId, isAuthenticated } = await auth();
   let plan: "Basic" | "Growth" | "Scale" | null = null;
   if (userId) {
     const currentSubscription = await db
@@ -50,7 +50,7 @@ export default async function Home() {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
-                href="/sign-up"
+                href={isAuthenticated ? "/dashboard" : "/sign-up"}
                 className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
               >
                 Get Started
@@ -154,7 +154,7 @@ export default async function Home() {
       </section>
 
       {/* Pricing */}
-      <Pricing plan={plan} />
+      <Pricing plan={plan} isAuthenticated={isAuthenticated} />
 
       {/* Bottom CTA */}
       <section className="py-16 sm:py-24">
@@ -165,7 +165,7 @@ export default async function Home() {
             </h2>
             <div className="mt-6 flex items-center justify-center gap-3">
               <Link
-                href="/sign-up"
+                href={isAuthenticated ? "/dashboard" : "/sign-up"}
                 className="rounded-md bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500"
               >
                 Get Started

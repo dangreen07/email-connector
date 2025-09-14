@@ -11,6 +11,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { CreateCustomerPortal } from "@/utils/stripe/actions";
+import { useRouter } from "next/navigation";
 
 export default function UserMenu() {
   const { user } = useUser();
@@ -26,6 +28,8 @@ export default function UserMenu() {
     "";
 
   const avatar = u?.imageUrl;
+
+  const router = useRouter();
 
   return (
     <DropdownMenu>
@@ -83,8 +87,22 @@ export default function UserMenu() {
         <DropdownMenuGroup>
           <DropdownMenuItem asChild className="p-0">
             <Link href="/account" className="block w-full px-4 py-3 text-sm">
-              Manage account
+              Manage Account
             </Link>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem asChild className="p-0">
+            <button
+              onClick={async () => {
+                const result = await CreateCustomerPortal();
+                if (result) {
+                  router.push(result);
+                }
+              }}
+              className="block w-full px-4 py-3 text-sm"
+            >
+              Manage Billing
+            </button>
           </DropdownMenuItem>
 
           <DropdownMenuItem asChild className="p-0">

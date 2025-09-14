@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 
 export default async function PricingPage() {
-  const { userId } = await auth();
+  const { userId, isAuthenticated } = await auth();
   let plan: "Basic" | "Growth" | "Scale" | null = null;
   if (userId) {
     const currentSubscription = await db
@@ -28,5 +28,5 @@ export default async function PricingPage() {
     }
   }
 
-  return <Pricing plan={plan} />;
+  return <Pricing plan={plan} isAuthenticated={isAuthenticated} />;
 }
