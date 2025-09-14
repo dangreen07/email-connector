@@ -6,25 +6,38 @@ info:
     Unified email connection and messaging API for Outlook, Gmail, and SMTP/IMAP.
 servers:
   - url: https://api.maillink.co
-
+    description: Local development server
 tags:
   - name: Connections
     description: Operations to initiate and manage provider connections (Outlook, Gmail, SMTP/IMAP). Requires a publishable key.
   - name: Messages
     description: Operations to list, retrieve, and send emails via connected accounts. Requires a secret key.
-  - name: Callbacks
-    description: OAuth 2.0 callback endpoints for Outlook and Gmail to complete authorization; no authentication required.
-
 paths:
-  /connection:
+  /v1/connection:
     post:
       tags:
         - Connections
       summary: Create a provider connection
       description: >
         Starts an OAuth connection (Gmail/Outlook) or directly connects via
-        SMTP/IMAP. Requires a publishable key in the Authorization header.
+        SMTP/IMAP. Requires a publishable key in the Authorization header:
+        Authorization: Bearer <publishableKey>.
       operationId: createConnection
+      x-usage: |
+        **Usage**
+
+        1. Include your *publishable* API key in the request header:
+
+           `Authorization: Bearer <publishableKey>`
+
+        2. Required query parameters:
+           - `providerCode` — one of `outlook`, `gmail`, `smtp-imap`
+           - `identifier` — your app-specific identifier for the target account
+           - `redirectAfterAuth` — a URL the user will be redirected to after OAuth completes
+
+        3. Behavior:
+           - For `gmail` / `outlook` the response returns a JSON object `{ "authUrl": "<url>" }`. Redirect the user to the returned `authUrl` to complete the OAuth flow.
+           - For `smtp-imap` POST the SMTP/IMAP credentials in the request body (see `SMTPIMAPCredentials` schema). The endpoint will attempt a direct connection and return a confirmation message on success.
       security:
         - PublishableKeyAuth: []
       parameters:
@@ -40,33 +53,21 @@ paths:
           required: true
           schema:
             type: string
-          description: >
-            Your app-specific identifier for the user/account being connected.
+          description: Your app-specific identifier for the user/account being connected.
         - name: redirectAfterAuth
           in: query
           required: true
           schema:
             type: string
             format: uri
-          description: >
-            URL to redirect to after OAuth completes (URL-encoded in the request).
+          description: URL to redirect to after OAuth completes (URL-encoded in the request).
       requestBody:
         required: false
-        description: Required only when providerCode is "smtp-imap".
+        description: Required only when providerCode is "smtp-imap" — provide SMTP/IMAP credentials.
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/SMTPIMAPCredentials"
-            examples:
-              smtpImap:
-                value:
-                  smtpServer: smtp.mail.example.com
-                  smtpPort: 465
-                  imapServer: imap.mail.example.com
-                  imapPort: 993
-                  email: user@example.com
-                  password: "••••••••"
-                  useSSL: true
       responses:
         "200":
           description: Connection initiated
@@ -106,15 +107,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /messages:
+  /v1/messages:
     get:
       tags:
         - Messages
       summary: List messages
-      description: >
-        Lists messages for a connected account. Requires the secret key in the
-        Authorization header.
+      description: "Lists messages for a connected account. Requires the secret key in the Authorization header: Authorization: Bearer <secretKey>."
       operationId: listMessages
+      x-usage: |
+        **Usage**
+
+        1. Authenticate with the *secret* key for the environment:
+
+           `Authorization: Bearer <secretKey>`
+
+        2. Required query parameters:
+           - `identifier` — your app identifier for the connected account
+           - `providerCode` — `outlook` | `gmail` | `smtp-imap`
+
+        3. Optional query parameters:
+           - `limit` — max number of messages to return (default: 10)
+           - `offset`, `search` — reserved for future use
+
+        4. Response:
+           - Returns `{ "messages": [ EmailMessageSummary, ... ] }`.
+           - Each message contains an opaque `id` (use this with `/v1/messages/by-id` to fetch full details).
       security:
         - SecretKeyAuth: []
       parameters:
@@ -180,10 +197,26 @@ paths:
       tags:
         - Messages
       summary: Send an email
-      description: >
-        Sends an email via the connected provider. Requires the secret key in
-        the Authorization header.
+      description: "Sends an email via the connected provider. Requires the secret key in the Authorization header: Authorization: Bearer <secretKey>."
       operationId: sendMessage
+      x-usage: |
+        **Usage**
+
+        1. Authenticate with the environment secret key:
+
+           `Authorization: Bearer <secretKey>`
+
+        2. Select the target connected account via query params:
+           - `identifier` — your account identifier
+           - `providerCode` — `outlook` | `gmail` | `smtp-imap`
+
+        3. Request body (JSON):
+           - Minimal: `{ "to": ["recipient@example.com"], "subject": "Hello" }`
+           - Convenience: you may include top-level `text` or `html` fields for simple bodies.
+           - Advanced: use `bodies` (array of `{contentType, content}`), `attachments`, and `thread` fields to send attachments or thread replies.
+
+        4. Response:
+           - On success returns `{ "emailId": "<opaque-id>" }`. This opaque id can be used with `/v1/messages/by-id` to retrieve the sent message.
       security:
         - SecretKeyAuth: []
       parameters:
@@ -204,12 +237,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/SendEmail"
-            examples:
-              basic:
-                value:
-                  to: ["recipient@example.com"]
-                  subject: "Hello"
-                  text: "Just saying hi."
       responses:
         "200":
           description: Email accepted for sending
@@ -234,15 +261,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /messages/by-id:
+  /v1/messages/by-id:
     get:
       tags:
         - Messages
       summary: Get a message by API message ID
-      description: >
-        Fetches a single message by its API message id (opaque). Requires the
-        secret key in the Authorization header.
+      description: Fetches a single message by its opaque API message id. The id is produced by the server and encodes provider details; requires the secret key in Authorization header.
       operationId: getMessageById
+      x-usage: |
+        **Usage**
+
+        1. Authenticate with the environment secret key:
+
+           `Authorization: Bearer <secretKey>`
+
+        2. Query parameter:
+           - `id` — opaque API message id returned by `/v1/messages` or `/v1/messages` (send).
+
+        3. Behavior:
+           - The server decrypts the opaque `id` to obtain providerId/provider/identifier/environment.
+           - The server validates that the provided secret key belongs to the same environment embedded in the id.
+
+        4. Response:
+           - On success returns `{ "message": EmailMessageDetail }` including bodies (text/html) and attachments.
       security:
         - SecretKeyAuth: []
       parameters:
@@ -251,7 +292,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Opaque API message id.
+          description: Opaque API message id returned by send/list endpoints.
       responses:
         "200":
           description: Message detail
@@ -287,13 +328,11 @@ components:
     PublishableKeyAuth:
       type: http
       scheme: bearer
-      description: >
-        Use Authorization: Bearer <publishableKey> for /connection.
+      description: "Use Authorization: Bearer <publishableKey> for /v1/connection."
     SecretKeyAuth:
       type: http
       scheme: bearer
-      description: >
-        Use Authorization: Bearer <secretKey> for message endpoints.
+      description: "Use Authorization: Bearer <secretKey> for message endpoints."
   schemas:
     ErrorResponse:
       type: object
@@ -350,35 +389,62 @@ components:
 
     SendEmail:
       type: object
+      description: >
+        Flexible send envelope. For simple usage include 'to' (array of emails),
+        'subject' and either 'text' or 'html'. For advanced usage include 'bodies'
+        as an array of {contentType, content} entries and provide attachments.
       properties:
         to:
           type: array
           items:
-            type: string
-            format: email
+            oneOf:
+              - type: string
+                format: email
+              - $ref: "#/components/schemas/EmailAddress"
           minItems: 1
         cc:
           type: array
           items:
-            type: string
-            format: email
+            oneOf:
+              - type: string
+                format: email
+              - $ref: "#/components/schemas/EmailAddress"
         bcc:
           type: array
           items:
-            type: string
-            format: email
+            oneOf:
+              - type: string
+                format: email
+              - $ref: "#/components/schemas/EmailAddress"
         from:
-          type: string
-          format: email
+          oneOf:
+            - type: string
+              format: email
+            - $ref: "#/components/schemas/EmailAddress"
         replyTo:
-          type: string
-          format: email
+          oneOf:
+            - type: string
+              format: email
+            - $ref: "#/components/schemas/EmailAddress"
         subject:
           type: string
         text:
           type: string
+          description: Simple plain-text body (convenience - maps to bodies)
         html:
           type: string
+          description: Simple HTML body (convenience - maps to bodies)
+        bodies:
+          type: array
+          items:
+            type: object
+            properties:
+              contentType:
+                type: string
+                enum: [text, html]
+              content:
+                type: string
+            required: [contentType, content]
         attachments:
           type: array
           items:
@@ -387,6 +453,15 @@ components:
           type: object
           additionalProperties:
             type: string
+        thread:
+          type: object
+          properties:
+            conversationId:
+              type: string
+            inReplyTo:
+              type: string
+            references:
+              type: string
       required: [to, subject]
       additionalProperties: false
 
@@ -409,7 +484,7 @@ components:
       properties:
         id:
           type: string
-          description: Opaque API message id (use with /messages/by-id).
+          description: Opaque API message id (use with /v1/messages/by-id).
         provider:
           type: string
           enum: [outlook, gmail, smtp-imap]
