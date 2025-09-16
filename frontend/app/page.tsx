@@ -1,11 +1,38 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Container from "@/components/Container";
-import { GmailIcon, OutlookIcon, ImapIcon } from "@/components/icons";
 import Pricing from "@/components/pricing";
 import db from "@/utils/db";
 import { subscriptions, users } from "@/utils/db/schema";
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
+import Image from "next/image";
+
+export const metadata: Metadata = {
+  title: "MailLink - One API for all Providers.",
+  description:
+    "One API for Gmail, Outlook, and IMAP/SMTP. Free development and unlimited dev environments. Zero provider config in development; configure at production.",
+  keywords: [
+    "email api",
+    "free development environments",
+    "unlimited dev environments",
+    "zero config in development",
+    "gmail outlook imap smtp",
+    "instant dev environments",
+    "faster developer onboarding",
+  ],
+  openGraph: {
+    title: "MailLink - One API for all Providers.",
+    description:
+      "One API for Gmail, Outlook, and IMAP/SMTP. Zero provider configuration in development. Configure providers only at production.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MailLink - One API for all Providers.",
+    description:
+      "Zero provider config in development. Unlimited dev environments. Configure providers only at production.",
+  },
+};
 
 export default async function Home() {
   const { userId, isAuthenticated } = await auth();
@@ -39,66 +66,110 @@ export default async function Home() {
         <Container className="pt-20 pb-16 sm:pt-24 sm:pb-24">
           <div className="mx-auto max-w-3xl text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-indigo-500">
-              Developer-first email connectivity
+              One API for Gmail, Outlook, and IMAP/SMTP
             </p>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              One API for Every Inbox
+              One API for every inbox
             </h1>
             <p className="mt-4 text-lg text-foreground/80">
-              Connect Gmail, Outlook, and IMAP in minutes - no OAuth headaches
-              or vendor lock-in.
+              Prebuilt OAuth flows, unified JSON and webhooks, get from zero to
+              inbox in one afternoon.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
                 href={isAuthenticated ? "/dashboard" : "/sign-up"}
                 className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
               >
-                Get Started
+                Start free
               </Link>
               <Link
                 href="/docs"
                 className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-5 py-3 text-sm font-medium text-foreground/90 hover:border-foreground/40"
               >
-                View Docs
+                Read the docs
               </Link>
             </div>
+            <p className="mt-3 text-xs text-foreground/70">
+              Free for development · Unlimited dev environments
+            </p>
 
-            {/* Trust badges */}
-            <div className="mt-10 flex items-center justify-center gap-6 text-foreground/70">
-              <GmailIcon className="h-6 w-6" />
-              <OutlookIcon className="h-6 w-6" />
-              <ImapIcon className="h-6 w-6" />
+            {/* Provider logos */}
+            <div className="mt-8 flex items-center justify-center gap-6 text-foreground/70">
+              <Image
+                width={36}
+                height={36}
+                alt="gmail-logo"
+                src="https://img.icons8.com/color/96/gmail-new.png"
+              />
+              <Image
+                width={36}
+                height={36}
+                alt="outlook-logo"
+                src="https://img.icons8.com/color/96/microsoft-outlook-2019--v2.png"
+              />
+              <Image
+                width={36}
+                height={36}
+                alt="email-logo"
+                src="https://img.icons8.com/ios/100/secured-letter--v1.png"
+              />
             </div>
           </div>
         </Container>
       </section>
 
-      {/* Features */}
-      <section className="py-16 sm:py-24">
+      {/* Benefits - concrete and product-focused */}
+      <section className="py-12 sm:py-16">
+        <Container>
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Ship email features with a single API
+            </h2>
+            <ul className="mt-6 grid gap-3 text-sm text-foreground/80 sm:grid-cols-2">
+              <li>
+                Unified API for Gmail, Outlook, and any IMAP/SMTP provider
+              </li>
+              <li>Zero provider configuration in development</li>
+              <li>Unlimited development environments for users and teams</li>
+              <li>Per-environment API keys and isolation</li>
+              <li>
+                Easy handoff: configure providers when promoting to production
+              </li>
+            </ul>
+          </div>
+        </Container>
+      </section>
+
+      {/* Feature highlights - only what's in the product */}
+      <section className="py-12 sm:py-16">
         <Container>
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Everything you need to integrate email fast
+              Feature highlights
             </h2>
             <p className="mt-3 text-foreground/80">
-              Unified endpoints, webhooks, secure tokens, and a great developer
-              experience.
+              Built around environments with provider gating and webhooks for
+              production.
             </p>
           </div>
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { title: "Unified API", desc: "One endpoint for all providers." },
               {
-                title: "Fast Setup",
-                desc: "Connect an inbox in under 5 minutes.",
+                title: "Unified inbox API",
+                desc: "Send and work with mail via a single set of endpoints.",
               },
-              { title: "Simple Pricing", desc: "No hidden fees, flat rate." },
-              { title: "Webhooks", desc: "React to new mail instantly." },
               {
-                title: "Secure by default",
-                desc: "OAuth tokens encrypted at rest.",
+                title: "Gmail, Outlook, IMAP/SMTP",
+                desc: "Enable providers per environment; IMAP/SMTP without OAuth.",
               },
-              { title: "Great DX", desc: "Copy-paste snippets, sandbox keys." },
+              {
+                title: "Webhooks for production",
+                desc: "Gmail and Outlook webhooks in production; disabled in development.",
+              },
+              {
+                title: "Per-environment keys",
+                desc: "Publishable/secret keys, provider credentials, and isolation.",
+              },
             ].map((f) => (
               <div
                 key={f.title}
@@ -112,30 +183,35 @@ export default async function Home() {
         </Container>
       </section>
 
-      {/* How it works */}
-      <section className="py-16 sm:py-24">
+      {/* How it works - aligned to actual flows */}
+      <section className="py-12 sm:py-16">
         <Container>
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               How it works
             </h2>
           </div>
-          <ol className="mt-10 grid gap-6 sm:grid-cols-3">
+          <ol className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 step: 1,
-                title: "Add our Connect button",
-                desc: "Drop-in UI to connect inboxes.",
+                title: "Sign up",
+                desc: "No credit card required for development.",
               },
               {
                 step: 2,
-                title: "User authenticates",
-                desc: "Google/Microsoft or IMAP in one flow.",
+                title: "Create a development environment",
+                desc: "Get your publishable and secret keys.",
               },
               {
                 step: 3,
-                title: "Call /messages and /send",
-                desc: "Use a single token for all operations.",
+                title: "Build and test",
+                desc: "Use the unified API in dev; webhooks are disabled in development.",
+              },
+              {
+                step: 4,
+                title: "Promote to production",
+                desc: "Enable providers, add credentials, configure webhooks, go live.",
               },
             ].map((s) => (
               <li
@@ -153,67 +229,148 @@ export default async function Home() {
         </Container>
       </section>
 
-      {/* Pricing */}
-      <Pricing plan={plan} isAuthenticated={isAuthenticated} />
-
-      {/* Bottom CTA */}
-      <section className="py-16 sm:py-24">
+      {/* Pricing and policy - concise, aligned with product */}
+      <section className="py-12 sm:py-16">
         <Container>
-          <div className="mx-auto max-w-2xl text-center rounded-2xl border border-foreground/10 bg-[radial-gradient(60%_80%_at_50%_-20%,rgb(99_102_241/0.15),transparent_60%)] p-10">
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Ready to simplify email integration?
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Pricing and policy
             </h2>
-            <div className="mt-6 flex items-center justify-center gap-3">
-              <Link
-                href={isAuthenticated ? "/dashboard" : "/sign-up"}
-                className="rounded-md bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500"
-              >
-                Get Started
-              </Link>
+            <p className="mt-3 text-foreground/80">
+              Free for development. Pay for production. No credit card required
+              for development. No time limits.
+            </p>
+          </div>
+          <div className="mx-auto mt-8 max-w-3xl grid gap-6 sm:grid-cols-2">
+            <div className="rounded-xl border border-foreground/10 bg-background p-6 text-left">
+              <h3 className="text-base font-semibold">Development</h3>
+              <ul className="mt-2 list-disc pl-5 text-sm text-foreground/80">
+                <li>Free for development</li>
+                <li>Unlimited dev environments per user/team</li>
+                <li>Zero provider configuration in development</li>
+                <li>Webhooks are disabled in the development environment</li>
+              </ul>
             </div>
+            <div className="rounded-xl border border-foreground/10 bg-background p-6 text-left">
+              <h3 className="text-base font-semibold">Production</h3>
+              <ul className="mt-2 list-disc pl-5 text-sm text-foreground/80">
+                <li>Requires an active subscription</li>
+                <li>Enable providers, add credentials, configure webhooks</li>
+                <li>
+                  Pricing is per active inbox connection, with transparent
+                  overages for API calls and attachment bandwidth
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="mx-auto mt-6 max-w-3xl text-sm text-foreground/70">
+            <p>
+              Development includes environments used for building, testing, or
+              previews. Production is any environment serving real users or live
+              traffic. Provider configuration is only required when promoting an
+              environment to production.
+            </p>
           </div>
         </Container>
       </section>
 
-      {/* FAQ */}
-      <section className="py-16 sm:py-24">
+      {/* Existing pricing component */}
+      <Pricing plan={plan} isAuthenticated={isAuthenticated} />
+
+      {/* Social proof - minimal and honest */}
+      <section className="py-12 sm:py-16">
+        <Container>
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Built for engineering teams
+            </h2>
+            <div className="mt-8 flex items-center justify-center gap-6 text-foreground/50">
+              <Image
+                width={36}
+                height={36}
+                alt="gmail-logo"
+                src="https://img.icons8.com/color/96/gmail-new.png"
+              />
+              <Image
+                width={36}
+                height={36}
+                alt="outlook-logo"
+                src="https://img.icons8.com/color/96/microsoft-outlook-2019--v2.png"
+              />
+              <Image
+                width={36}
+                height={36}
+                alt="email-logo"
+                src="https://img.icons8.com/ios/100/secured-letter--v1.png"
+              />
+            </div>
+            <p className="mt-3 text-xs text-foreground/70">
+              Reliable by design. Tokens and credentials are encrypted at rest.
+              Environments isolate access and configuration.
+            </p>
+          </div>
+        </Container>
+      </section>
+
+      {/* FAQ - direct Q&A */}
+      <section className="py-12 sm:py-16">
         <Container>
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               FAQs
             </h2>
             <p className="mt-3 text-foreground/80">
-              Answers to common questions.
+              Direct answers for developers and engineering leaders.
             </p>
           </div>
           <div className="mx-auto mt-10 max-w-3xl divide-y divide-foreground/10 rounded-xl border border-foreground/10">
             {[
               {
-                q: "Which providers are supported?",
-                a: "Gmail, Outlook, and any IMAP provider.",
+                q: "Is development really free?",
+                a: "Yes. Development is free with no credit card required, no time limits, and unlimited development environments.",
               },
               {
-                q: "How do you handle security?",
-                a: "OAuth tokens are encrypted at rest; we follow best practices.",
+                q: "Are there any caps or fair-use limits?",
+                a: "No caps for development. We may throttle clearly abusive traffic to protect the service.",
               },
               {
-                q: "Do you have webhooks?",
-                a: "Yes, subscribe to new messages, send status, and more.",
+                q: "Do I need provider accounts or API keys for development?",
+                a: "No. Provider configuration is not required in development. You add provider credentials only when promoting to production.",
               },
               {
-                q: "What is pricing?",
-                a: "Simple flat-rate pricing with a generous free tier.",
+                q: "How many development environments can I create?",
+                a: "Unlimited - create dev or preview environments as needed.",
               },
               {
-                q: "Is there a sandbox?",
-                a: "Yes, use sandbox keys to develop safely.",
+                q: "How do I move to production and when do I configure providers?",
+                a: "Create or promote a production environment, then enable providers, add credentials, and configure webhooks.",
+              },
+              {
+                q: "Can my whole team use development environments for free?",
+                a: "Yes. Unlimited development environments per user and per team.",
+              },
+              {
+                q: "What about security and isolation?",
+                a: "Each environment is isolated. Tokens and secrets are encrypted at rest. Access is scoped per environment.",
+              },
+              {
+                q: "What performance should I expect?",
+                a: "Low-latency APIs tuned for development. Production throughput scales with your plan.",
+              },
+              {
+                q: "Are webhooks available in development?",
+                a: "Webhooks are disabled in the development environment. Configure Gmail/Outlook webhooks for production.",
+              },
+              {
+                q: "Do you support IMAP/SMTP without OAuth?",
+                a: "Yes. You can enable generic IMAP/SMTP for an environment with direct connection parameters.",
               },
             ].map((item, idx) => (
               <details key={idx} className="group">
                 <summary className="cursor-pointer list-none px-6 py-4 text-left font-medium hover:bg-foreground/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
                   <div className="flex items-center justify-between">
                     <span>{item.q}</span>
-                    <span className="ml-4 h-5 w-5 rounded-full border border-foreground/20 text-foreground/70 inline-flex items-center justify-center">
+                    <span className="ml-4 inline-flex h-5 w-5 items-center justify-center rounded-full border border-foreground/20 text-foreground/70">
                       <svg
                         className="h-3 w-3 transition-transform group-open:rotate-45"
                         viewBox="0 0 24 24"
@@ -231,6 +388,38 @@ export default async function Home() {
                 </div>
               </details>
             ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* Bottom CTA */}
+      <section className="py-16 sm:py-24">
+        <Container>
+          <div className="mx-auto max-w-2xl text-center rounded-2xl border border-foreground/10 bg-[radial-gradient(60%_80%_at_50%_-20%,rgb(99_102_241/0.15),transparent_60%)] p-10">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Start now - free for development
+            </h2>
+            <p className="mt-2 text-sm text-foreground/80">
+              Unlimited dev environments. Providers configured only at
+              production.
+            </p>
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <Link
+                href={isAuthenticated ? "/dashboard" : "/sign-up"}
+                className="rounded-md bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500"
+              >
+                Start free
+              </Link>
+              <Link
+                href="/docs"
+                className="rounded-md border border-foreground/20 px-5 py-3 text-sm font-medium text-foreground/90 hover:border-foreground/40"
+              >
+                Read the docs
+              </Link>
+            </div>
+            <p className="mt-3 text-xs text-foreground/70">
+              Free for development · Unlimited dev environments
+            </p>
           </div>
         </Container>
       </section>

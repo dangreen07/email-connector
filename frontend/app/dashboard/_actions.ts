@@ -5,6 +5,8 @@ import {
   connectedProviders,
   environments,
   projects,
+  subscriptions,
+  users,
   Webhook,
   webhooks,
 } from "@/utils/db/schema";
@@ -100,30 +102,38 @@ export async function CreateProductionEnvironment(
 
   try {
     // Ensure the project belongs to the user and fetch environments
-    const project = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, projectId))
-      .then((rows) => rows.at(0) ?? null);
+    const [project, existingProd, subscription] = await Promise.all([
+      db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .then((rows) => rows.at(0) ?? null),
+      db
+        .select()
+        .from(environments)
+        .where(
+          and(
+            eq(environments.projectId, projectId),
+            eq(environments.name, "production")
+          )
+        )
+        .then((rows) => rows.at(0) ?? null),
+      db
+        .select({ subscription: subscriptions })
+        .from(subscriptions)
+        .innerJoin(users, eq(users.stripeCustomerId, subscriptions.customerId))
+        .where(eq(users.clerkUserId, userId))
+        .then((val) => val.at(0)?.subscription ?? null),
+    ]);
 
     if (!project || project.userId !== userId) {
       return { error: "Not found" } as const;
-    }
-
-    // Check if production already exists
-    const existingProd = await db
-      .select()
-      .from(environments)
-      .where(
-        and(
-          eq(environments.projectId, projectId),
-          eq(environments.name, "production")
-        )
-      )
-      .then((rows) => rows.at(0) ?? null);
-
-    if (existingProd) {
+    } else if (existingProd) {
       return { environmentId: existingProd.id } as const;
+    } else if (subscription?.status != "active") {
+      return {
+        error: "You need a subscription to use production environments!",
+      };
     }
 
     const publishableKey = generateApiKey("pk_prod");
