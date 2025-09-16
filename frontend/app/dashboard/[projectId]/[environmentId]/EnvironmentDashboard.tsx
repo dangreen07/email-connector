@@ -11,11 +11,12 @@ import {
   DangerZone,
   ProviderConnections,
   WebhooksManager,
+  LogsViewer,
 } from "./_components";
 import { Button } from "@/components/ui/button";
 import { UpdateEnvironmentSettings } from "../../_actions";
 import { DashboardProvider } from "@/utils/types";
-import { Webhook } from "@/utils/db/schema";
+import { Webhook, Log } from "@/utils/db/schema";
 
 export default function EnvironmentDashboard(props: {
   projectId: string;
@@ -26,6 +27,7 @@ export default function EnvironmentDashboard(props: {
   secretKey: string;
   providers: DashboardProvider[];
   webhooks: Webhook[];
+  logs: Log[];
 }) {
   const {
     projectName: projectNameProp,
@@ -36,6 +38,7 @@ export default function EnvironmentDashboard(props: {
     projectId,
     environmentId,
     webhooks: initialWebhooks,
+    logs: logsProp,
   } = props;
 
   const {
@@ -143,6 +146,7 @@ export default function EnvironmentDashboard(props: {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="providers">Providers</TabsTrigger>
             <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+            <TabsTrigger value="logs">Logs</TabsTrigger>
             <TabsTrigger value="settings">Project Settings</TabsTrigger>
           </TabsList>
 
@@ -201,6 +205,11 @@ export default function EnvironmentDashboard(props: {
         <TabsContent value="webhooks" className="mt-3">
           <div className="grid gap-6 lg:grid-cols-3">
             <WebhooksManager />
+          </div>
+        </TabsContent>
+        <TabsContent value="logs" className="mt-3">
+          <div className="grid">
+            <LogsViewer logs={logsProp} />
           </div>
         </TabsContent>
         <TabsContent value="settings" className="mt-3">

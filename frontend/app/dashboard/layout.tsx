@@ -1,7 +1,13 @@
 import db from "@/utils/db";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { environments, FullProject, projects } from "@/utils/db/schema";
+import {
+  environments,
+  FullProject,
+  projects,
+  subscriptions,
+  users,
+} from "@/utils/db/schema";
 import { eq } from "drizzle-orm";
 import DashboardSelector from "./DashboardSelector";
 import { DashboardStoreProvider } from "@/lib/dashboard/dashboard-store-provider";
@@ -14,11 +20,19 @@ export default async function DashboardLayout({
   const { userId } = await auth();
   if (!userId) return redirect("/");
 
-  const projectsList = await db
-    .select()
-    .from(projects)
-    .leftJoin(environments, eq(projects.id, environments.projectId))
-    .where(eq(projects.userId, userId));
+  const [projectsList, subscription] = await Promise.all([
+    db
+      .select()
+      .from(projects)
+      .leftJoin(environments, eq(projects.id, environments.projectId))
+      .where(eq(projects.userId, userId)),
+    db
+      .select({ status: subscriptions.status })
+      .from(subscriptions)
+      .innerJoin(users, eq(users.stripeCustomerId, subscriptions.customerId))
+      .where(eq(users.clerkUserId, userId))
+      .then((val) => val.at(0) ?? null),
+  ]);
 
   const projectsFull: FullProject[] = projectsList.reduce((acc, row) => {
     let existingProject = acc.find((p) => p.id === row.projects.id);
@@ -42,7 +56,10 @@ export default async function DashboardLayout({
 
   return (
     <DashboardStoreProvider>
-      <DashboardSelector projects={projectsFull} />
+      <DashboardSelector
+        projects={projectsFull}
+        subscriptionStatus={subscription?.status}
+      />
       <div className="overflow-y-scroll h-[calc(100vh-15rem)] overscroll-contain">
         {children}
       </div>

@@ -4,9 +4,10 @@ import {
   environments,
   projects,
   webhooks,
+  logs,
 } from "@/utils/db/schema";
 import { auth } from "@clerk/nextjs/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import EnvironmentDashboard from "./EnvironmentDashboard";
 import { decrypt } from "@/utils/encryption";
@@ -22,7 +23,12 @@ export default async function EnvironmentPage({
   if (!userId) return null;
 
   const project = await db
-    .select()
+    .select({
+      projectName: projects.name,
+      environmentName: environments.name,
+      publishableKey: environments.publishableKey,
+      secretKey: environments.secretKey,
+    })
     .from(projects)
     .innerJoin(environments, eq(projects.id, environments.projectId))
     .where(
@@ -37,54 +43,61 @@ export default async function EnvironmentPage({
   if (!project) {
     return redirect("/dashboard");
   }
-
-  const providers = await db
-    .select()
-    .from(connectedProviders)
-    .where(eq(connectedProviders.environmentId, environmentId))
-    .then((providers) =>
-      providers.map((provider) => {
-        if (project.environments.name == "production") {
-          if (provider.credentials) {
-            const credentials = JSON.parse(
-              decrypt(provider.credentials, process.env.CRED_ENCRYPTION_KEY!)
-            );
-            return {
-              ...provider,
-              providerCode: provider.providerCode as
-                | "gmail"
-                | "outlook"
-                | "smtp-imap",
-              credentials: credentials,
-            };
+  const [providers, webhookList, logsList] = await Promise.all([
+    db
+      .select()
+      .from(connectedProviders)
+      .where(eq(connectedProviders.environmentId, environmentId))
+      .then((providers) =>
+        providers.map((provider) => {
+          if (project.environmentName == "production") {
+            if (provider.credentials) {
+              const credentials = JSON.parse(
+                decrypt(provider.credentials, process.env.CRED_ENCRYPTION_KEY!)
+              );
+              return {
+                ...provider,
+                providerCode: provider.providerCode as
+                  | "gmail"
+                  | "outlook"
+                  | "smtp-imap",
+                credentials: credentials,
+              };
+            }
           }
-        }
-        return {
-          ...provider,
-          providerCode: provider.providerCode as
-            | "gmail"
-            | "outlook"
-            | "smtp-imap",
-          credentials: undefined,
-        };
-      })
-    );
-
-  const webhookList = await db
-    .select()
-    .from(webhooks)
-    .where(and(eq(webhooks.environmentId, environmentId)));
+          return {
+            ...provider,
+            providerCode: provider.providerCode as
+              | "gmail"
+              | "outlook"
+              | "smtp-imap",
+            credentials: undefined,
+          };
+        })
+      ),
+    db
+      .select()
+      .from(webhooks)
+      .where(and(eq(webhooks.environmentId, environmentId))),
+    db
+      .select()
+      .from(logs)
+      .where(eq(logs.environmentId, environmentId))
+      .orderBy(desc(logs.requestAt))
+      .limit(200),
+  ]);
 
   return (
     <EnvironmentDashboard
-      projectName={project.projects.name}
-      environmentName={project.environments.name}
-      publishableKey={project.environments.publishableKey}
-      secretKey={project.environments.secretKey}
+      projectName={project.projectName}
+      environmentName={project.environmentName}
+      publishableKey={project.publishableKey}
+      secretKey={project.secretKey}
       providers={providers}
       projectId={projectId}
       environmentId={environmentId}
       webhooks={webhookList}
+      logs={logsList}
     />
   );
 }

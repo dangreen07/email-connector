@@ -2,12 +2,54 @@ import Fastify from 'fastify';
 import v1Routes from './routes/v1';
 import redis from './redis';
 import db from './db';
-import { connectionCredentials, connections, environments } from './db/schema';
+import {
+  connectionCredentials,
+  connections,
+  environments,
+  projects,
+} from './db/schema';
 import { and, eq, isNotNull, or } from 'drizzle-orm';
 import { queue } from './queues';
+import { clerkPlugin } from '@clerk/fastify';
+import rateLimit from '@fastify/rate-limit';
 
 const fastify = Fastify({
   logger: true,
+});
+
+fastify.register(clerkPlugin);
+fastify.register(rateLimit, {
+  keyGenerator: async (req) => {
+    const headers = req.headers;
+    const authorization = headers.authorization;
+    const key = authorization?.split(' ')[1];
+    if (!key) {
+      return req.ip; // If no key, return IP
+    }
+    let userId: string | null = null;
+
+    userId = await redis.get(`apiKey:${key}:userId`);
+    if (!userId) {
+      const result = await db
+        .select({ userId: projects.userId })
+        .from(projects)
+        .innerJoin(environments, eq(environments.projectId, projects.id))
+        .where(
+          or(
+            eq(environments.publishableKey, key),
+            eq(environments.secretKey, key),
+          ),
+        )
+        .then((val) => val.at(0) ?? null);
+      if (!result) {
+        // They have an invalid key
+        return req.ip;
+      }
+      userId = result.userId;
+    }
+    return userId;
+  },
+  global: false, // Disable automatic global rate limiting
 });
 
 const LOGGED_ENDPOINTS = [

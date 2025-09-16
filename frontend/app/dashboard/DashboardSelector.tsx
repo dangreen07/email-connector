@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { FullProject } from "@/utils/db/schema";
 import { Label } from "@/components/ui/label";
 import {
@@ -27,8 +28,10 @@ import { CreateProductionEnvironment, CreateProject } from "./_actions";
 
 export default function DashboardSelector({
   projects,
+  subscriptionStatus,
 }: {
   projects: FullProject[];
+  subscriptionStatus?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -59,6 +62,9 @@ export default function DashboardSelector({
 
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+
+  const upgradeRequired =
+    !subscriptionStatus || subscriptionStatus === "canceled";
 
   function navigateTo(projectId: string, envNameOrId?: string) {
     const project = projects.find((p) => p.id === projectId);
@@ -178,61 +184,90 @@ export default function DashboardSelector({
                   <Button className="ml-3">Create production…</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create production environment</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-2">
-                    <div>
-                      <p className="text-sm text-foreground/80">
-                        Choose how to initialize production for{" "}
-                        <span className="font-medium">
-                          {activeProject?.name}
-                        </span>
-                        .
-                      </p>
-                    </div>
-                    <RadioGroup
-                      value={prodInitMode}
-                      onValueChange={(v) =>
-                        setProdInitMode(v as typeof prodInitMode)
-                      }
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem id="copy" value="copy" />
-                        <Label htmlFor="copy">
-                          Copy settings from development
-                        </Label>
+                  {upgradeRequired ? (
+                    <>
+                      <DialogHeader>
+                        <DialogTitle>Upgrade required</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-2">
+                        <p className="text-sm text-foreground/80">
+                          Creating a production environment requires an active
+                          subscription. Upgrade your plan to enable production
+                          for{" "}
+                          <span className="font-medium">
+                            {activeProject?.name}
+                          </span>
+                          .
+                        </p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem id="blank" value="blank" />
-                        <Label htmlFor="blank">
-                          Start with a blank production
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      disabled={!activeProject || isPending}
-                      onClick={() => {
-                        if (!activeProject) return;
-                        startTransition(async () => {
-                          const res = await CreateProductionEnvironment(
-                            activeProject.id,
-                            prodInitMode
-                          );
-                          if (res && "error" in res) {
-                            alert(res.error);
-                          } else if (res && res.environmentId) {
-                            setIsCreateProdOpen(false);
-                            navigateTo(activeProject.id, res.environmentId);
+                      <DialogFooter>
+                        <Button
+                          asChild
+                          onClick={() => setIsCreateProdOpen(false)}
+                        >
+                          <Link href="/pricing">View pricing</Link>
+                        </Button>
+                      </DialogFooter>
+                    </>
+                  ) : (
+                    <>
+                      <DialogHeader>
+                        <DialogTitle>Create production environment</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-2">
+                        <div>
+                          <p className="text-sm text-foreground/80">
+                            Choose how to initialize production for{" "}
+                            <span className="font-medium">
+                              {activeProject?.name}
+                            </span>
+                            .
+                          </p>
+                        </div>
+                        <RadioGroup
+                          value={prodInitMode}
+                          onValueChange={(v) =>
+                            setProdInitMode(v as typeof prodInitMode)
                           }
-                        });
-                      }}
-                    >
-                      Create production
-                    </Button>
-                  </DialogFooter>
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem id="copy" value="copy" />
+                            <Label htmlFor="copy">
+                              Copy settings from development
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem id="blank" value="blank" />
+                            <Label htmlFor="blank">
+                              Start with a blank production
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          disabled={!activeProject || isPending}
+                          onClick={() => {
+                            if (!activeProject) return;
+                            startTransition(async () => {
+                              const res = await CreateProductionEnvironment(
+                                activeProject.id,
+                                prodInitMode
+                              );
+                              if (res && "error" in res) {
+                                alert(res.error);
+                              } else if (res && res.environmentId) {
+                                setIsCreateProdOpen(false);
+                                navigateTo(activeProject.id, res.environmentId);
+                              }
+                            });
+                          }}
+                        >
+                          Create production
+                        </Button>
+                      </DialogFooter>
+                    </>
+                  )}
                 </DialogContent>
               </Dialog>
             )}
