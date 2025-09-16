@@ -1,3 +1,4 @@
+import { doublePrecision } from "drizzle-orm/pg-core";
 import {
   boolean,
   pgTable,
@@ -122,7 +123,7 @@ export const logs = pgTable("logs", {
   method: text("method").notNull(),
   statusCode: integer("status_code").notNull(),
   requestAt: timestamp("requestAt").notNull(),
-  duration: integer("duration").notNull(),
+  duration: doublePrecision("duration").notNull(),
   query: text("query"),
   body: text("body"),
 });

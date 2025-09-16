@@ -9,16 +9,20 @@ export const logJob = async (job: Job<any, any, string>) => {
     route: string;
     method: string;
     statusCode: number;
-    time: Date;
+    time: number;
     duration: number;
     query: unknown;
     body: unknown;
   };
 
-  await db.insert(logs).values({
-    ...data,
-    requestAt: data.time,
-    query: data.query as string,
-    body: data.body as string,
-  });
+  try {
+    await db.insert(logs).values({
+      ...data,
+      requestAt: new Date(data.time),
+      query: data.query as string,
+      body: data.body as string,
+    });
+  } catch (err) {
+    console.error(err);
+  }
 };

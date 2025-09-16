@@ -66,7 +66,7 @@ const LOGGED_ENDPOINTS = [
 ];
 
 fastify.addHook('onResponse', async (req, reply) => {
-  const route = req.originalUrl ?? req.url;
+  const route = (req.originalUrl ?? req.url).split('?')[0];
   if (!LOGGED_ENDPOINTS.includes(route)) {
     return; // skip logging for this route
   }
@@ -115,7 +115,7 @@ fastify.addHook('onResponse', async (req, reply) => {
     route,
     method: req.method,
     statusCode: reply.statusCode,
-    time: new Date(),
+    time: new Date().getTime(),
     duration: reply.elapsedTime,
     query: req.query,
     body: req.body,
