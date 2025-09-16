@@ -7,6 +7,19 @@ const nextConfig: NextConfig = {
       new URL("https://img.icons8.com/**"),
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/relay-xDIs/static/:path*",
+        destination: "https://us-assets.i.posthog.com/static/:path*",
+      },
+      {
+        source: "/relay-xDIs/:path*",
+        destination: "https://us.i.posthog.com/:path*",
+      },
+    ];
+  },
+  skipTrailingSlashRedirect: true,
 };
 
 import withMDX from "@next/mdx";

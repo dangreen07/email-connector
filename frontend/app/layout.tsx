@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { PostHogProvider } from "@/components/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -95,7 +96,9 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <Header />
-            <main className="min-h-[calc(100vh-9.5rem)]">{children}</main>
+            <PostHogProvider>
+              <main className="min-h-[calc(100vh-9.5rem)]">{children}</main>
+            </PostHogProvider>
             <Footer />
             <Toaster />
           </ThemeProvider>
