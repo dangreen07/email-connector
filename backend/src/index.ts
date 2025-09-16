@@ -46,6 +46,13 @@ fastify.register(rateLimit, {
         return req.ip;
       }
       userId = result.userId;
+
+      await redis.set(`apiKey:${key}:userId`, userId, {
+        expiration: {
+          type: 'EX',
+          value: 60 * 60, // 1 hour TTL
+        },
+      });
     }
     return userId;
   },
