@@ -52,7 +52,7 @@ export async function connectSMTPIMAP(
           and(
             eq(connections.environmentId, environment.id),
             eq(connectionCredentials.email, email),
-            eq(connectionCredentials.providerCode, 'gmail'),
+            eq(connectionCredentials.providerCode, 'smtp-imap'),
           ),
         )
         .then((val) => val.at(0) ?? null);
@@ -71,7 +71,7 @@ export async function connectSMTPIMAP(
           and(
             eq(environments.name, 'development'),
             eq(connectionCredentials.email, email),
-            eq(connectionCredentials.providerCode, 'gmail'),
+            eq(connectionCredentials.providerCode, 'smtp-imap'),
           ),
         )
         .limit(1)
@@ -102,7 +102,7 @@ export async function connectSMTPIMAP(
       const inserted = await tx
         .insert(connectionCredentials)
         .values({
-          providerCode: 'gmail',
+          providerCode: 'smtp-imap',
           email,
           credentials,
         })
