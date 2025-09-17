@@ -109,7 +109,15 @@ fastify.addHook('onResponse', async (req, reply) => {
       },
     });
   }
-  await redis.incr(`api-calls:${environmentId}`); // Record the API calls a user has made
+  const currentValue = await redis.incr(`api-calls:${environmentId}`); // Record the API calls a user has made
+  const userId = await redis.get(`apiKey:${key}:userId`);
+  if (currentValue % 1000 == 0 && userId) {
+    // Every 1,000 update stripe
+    await queue.add('usage-report', {
+      userId,
+      currentAPICalls: currentValue,
+    });
+  }
   await queue.add('log', {
     environmentId,
     route,

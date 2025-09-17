@@ -8,6 +8,7 @@ import db from '../db';
 import { webhooks } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { logJob } from './logging';
+import { UsageReport } from './sync-stripe';
 
 export const queue = new Queue('queue', {
   connection: connection,
@@ -48,6 +49,8 @@ new Worker(
       );
     } else if (job.name == 'log') {
       await logJob(job);
+    } else if (job.name == 'usage-report') {
+      await UsageReport(job);
     }
   },
   {
