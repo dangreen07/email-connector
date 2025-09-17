@@ -7,7 +7,7 @@ import {
   logs,
 } from "@/utils/db/schema";
 import { auth } from "@clerk/nextjs/server";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, count } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import EnvironmentDashboard from "./EnvironmentDashboard";
 import { decrypt } from "@/utils/encryption";
@@ -43,7 +43,7 @@ export default async function EnvironmentPage({
   if (!project) {
     return redirect("/dashboard");
   }
-  const [providers, webhookList, logsList] = await Promise.all([
+  const [providers, webhookList, logsList, logCount] = await Promise.all([
     db
       .select()
       .from(connectedProviders)
@@ -84,7 +84,12 @@ export default async function EnvironmentPage({
       .from(logs)
       .where(eq(logs.environmentId, environmentId))
       .orderBy(desc(logs.requestAt))
-      .limit(200),
+      .limit(50),
+    db
+      .select({ count: count() })
+      .from(logs)
+      .where(eq(logs.environmentId, environmentId))
+      .then((item) => item.at(0)?.count ?? 0),
   ]);
 
   return (
@@ -98,6 +103,7 @@ export default async function EnvironmentPage({
       environmentId={environmentId}
       webhooks={webhookList}
       logs={logsList}
+      totalLogs={logCount}
     />
   );
 }

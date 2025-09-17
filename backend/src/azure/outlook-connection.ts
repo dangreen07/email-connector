@@ -310,6 +310,7 @@ export async function handleOutlookCallback(
           identifier: stateToken.identifier,
         },
         {
+          removeOnComplete: true,
           delay: 50 * 60 * 1000, // Refresh every 50 minutes
         },
       );
@@ -711,7 +712,13 @@ export async function handleOutlookWebhookProd(
             environment.name,
             providerId,
           );
-          await queue.add('webhook-notify', { environmentId, message: email });
+          await queue.add(
+            'webhook-notify',
+            { environmentId, message: email },
+            {
+              removeOnComplete: true,
+            },
+          );
           // Found the owner of this message, stop iterating connections for this providerId
           break;
         } catch {

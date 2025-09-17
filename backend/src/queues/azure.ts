@@ -36,6 +36,7 @@ export const azureSubRefresh = async (job: Job<any, any, string>) => {
       identifier: data.identifier,
     },
     {
+      removeOnComplete: true,
       delay: 50 * 60 * 1000, // Refresh every 50 minutes
     },
   );

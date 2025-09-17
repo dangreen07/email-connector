@@ -116,6 +116,7 @@ export const googleWatchRefresh = async (job: Job<any, any, string>) => {
       environmentName: data.environmentName,
     },
     {
+      removeOnComplete: true,
       delay: Number(expirationDate) - currentDatetime - 60 * 60 * 1000, // Subtract 1 hour to ensure no gap period of notifications
     },
   );

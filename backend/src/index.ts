@@ -113,21 +113,33 @@ fastify.addHook('onResponse', async (req, reply) => {
   const userId = await redis.get(`apiKey:${key}:userId`);
   if (currentValue % 1000 == 0 && userId) {
     // Every 1,000 update stripe
-    await queue.add('usage-report', {
-      userId,
-      currentAPICalls: currentValue,
-    });
+    await queue.add(
+      'usage-report',
+      {
+        userId,
+        currentAPICalls: currentValue,
+      },
+      {
+        removeOnComplete: true,
+      },
+    );
   }
-  await queue.add('log', {
-    environmentId,
-    route,
-    method: req.method,
-    statusCode: reply.statusCode,
-    time: new Date().getTime(),
-    duration: reply.elapsedTime,
-    query: req.query,
-    body: req.body,
-  });
+  await queue.add(
+    'log',
+    {
+      environmentId,
+      route,
+      method: req.method,
+      statusCode: reply.statusCode,
+      time: new Date().getTime(),
+      duration: reply.elapsedTime,
+      query: req.query,
+      body: req.body,
+    },
+    {
+      removeOnComplete: true,
+    },
+  );
 });
 
 fastify.register(v1Routes, { prefix: '/v1' });
@@ -159,7 +171,9 @@ async function start() {
     );
 
   for (const connection of smtpIMAPConnections) {
-    await queue.add('smtp-imap-start-listen', connection);
+    await queue.add('smtp-imap-start-listen', connection, {
+      removeOnComplete: true,
+    });
   }
 
   try {

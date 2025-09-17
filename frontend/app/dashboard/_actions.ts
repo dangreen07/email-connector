@@ -4,6 +4,8 @@ import db from "@/utils/db";
 import {
   connectedProviders,
   environments,
+  Log,
+  logs,
   projects,
   subscriptions,
   users,
@@ -11,7 +13,7 @@ import {
   webhooks,
 } from "@/utils/db/schema";
 import { auth } from "@clerk/nextjs/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, desc, count } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { encrypt } from "@/utils/encryption";
 
@@ -481,4 +483,43 @@ export async function regenerateKeys(environmentId: string) {
     publishableKey,
     secretKey,
   };
+}
+
+type PageResult = {
+  logs: Log[];
+  total: number;
+};
+
+/**
+ * Fetch a page of logs for an environment.
+ * - environmentId: string (required)
+ * - offset: number (skip)
+ * - limit: number (take) — default 50
+ */
+export async function getLogsPage(
+  environmentId: string,
+  page = 1,
+  pageSize = 50
+): Promise<PageResult> {
+  if (!environmentId) return { logs: [], total: 0 };
+
+  const offset = Math.max(0, page - 1) * pageSize;
+
+  const [rows, totalResult] = await Promise.all([
+    db
+      .select()
+      .from(logs)
+      .where(eq(logs.environmentId, environmentId))
+      .orderBy(desc(logs.requestAt))
+      .limit(pageSize)
+      .offset(offset),
+    db
+      .select({ count: count() })
+      .from(logs)
+      .where(eq(logs.environmentId, environmentId)),
+  ]);
+
+  const total = Number(totalResult?.[0]?.count ?? 0);
+
+  return { logs: rows as unknown as Log[], total };
 }

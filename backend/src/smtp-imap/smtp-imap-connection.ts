@@ -123,11 +123,17 @@ export async function connectSMTPIMAP(
     }
   });
 
-  await queue.add('smtp-imap-start-listen', {
-    environmentId: environment.id,
-    identifier: identifier,
-    connection: creds,
-  });
+  await queue.add(
+    'smtp-imap-start-listen',
+    {
+      environmentId: environment.id,
+      identifier: identifier,
+      connection: creds,
+    },
+    {
+      removeOnComplete: true,
+    },
+  );
 }
 
 export async function getSMTPIMAPMessages(

@@ -28,6 +28,7 @@ export default function EnvironmentDashboard(props: {
   providers: DashboardProvider[];
   webhooks: Webhook[];
   logs: Log[];
+  totalLogs: number;
 }) {
   const {
     projectName: projectNameProp,
@@ -39,6 +40,7 @@ export default function EnvironmentDashboard(props: {
     environmentId,
     webhooks: initialWebhooks,
     logs: logsProp,
+    totalLogs,
   } = props;
 
   const {
@@ -209,7 +211,7 @@ export default function EnvironmentDashboard(props: {
         </TabsContent>
         <TabsContent value="logs" className="mt-3">
           <div className="grid">
-            <LogsViewer logs={logsProp} />
+            <LogsViewer initialLogs={logsProp} initialTotal={totalLogs} />
           </div>
         </TabsContent>
         <TabsContent value="settings" className="mt-3">

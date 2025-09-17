@@ -325,6 +325,7 @@ export async function handleGmailCallback(
         environmentName: environment.name,
       },
       {
+        removeOnComplete: true,
         delay: Number(expirationDate) - currentDatetime - 60 * 60 * 1000, // Subtract 1 hour to ensure no gap period of notifications
       },
     );
@@ -836,7 +837,13 @@ export async function handleGmailWebhook(
 
   await Promise.all(
     addedMessages.map((email) =>
-      queue.add('webhook-notify', { environmentId, message: email }),
+      queue.add(
+        'webhook-notify',
+        { environmentId, message: email },
+        {
+          removeOnComplete: true,
+        },
+      ),
     ),
   );
 
