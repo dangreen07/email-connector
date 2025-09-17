@@ -160,11 +160,12 @@ export default function Header() {
                 </SignedOut>
                 <SignedIn>
                   <Link
-                    href="/app"
-                    className="px-4 py-2 text-sm font-semibold rounded-md bg-indigo-600 text-white"
+                    href="/dashboard"
+                    className="text-foreground/80 hover:text-foreground transition-colors"
                   >
-                    Open App
+                    Dashboard
                   </Link>
+                  <UserMenu />
                 </SignedIn>
               </div>
             </nav>

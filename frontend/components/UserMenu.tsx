@@ -106,6 +106,12 @@ export default function UserMenu() {
           </DropdownMenuItem>
 
           <DropdownMenuItem asChild className="p-0">
+            <Link href="/usage" className="block w-full px-4 py-3 text-sm">
+              Manage Usage
+            </Link>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem asChild className="p-0">
             <button
               onClick={() => signOut()}
               className="block w-full px-4 py-3 text-sm"
