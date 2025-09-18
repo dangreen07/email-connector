@@ -56,7 +56,8 @@ fastify.register(rateLimit, {
     }
     return userId;
   },
-  global: false, // Disable automatic global rate limiting
+  max: 1000,
+  timeWindow: 1000,
 });
 
 const LOGGED_ENDPOINTS = [
