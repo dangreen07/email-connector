@@ -30,33 +30,48 @@ function calcProgress(used: number, included: number) {
 
 export default function UsagePage() {
   const [usage, setUsage] = useState<Usage | null>(null);
-  const { getToken } = useAuth();
-
-  const getUsage = async () => {
-    try {
-      const token = await getToken();
-      const result = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/usage`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (result.status == 200) {
-        const usage = await result.json();
-        setUsage(usage);
-      }
-    } catch {
-      console.error("Failed to get usage!");
-    }
-  };
+  const { getToken, isLoaded } = useAuth();
 
   useEffect(() => {
-    getUsage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!isLoaded) return;
+
+    const ac = new AbortController();
+    let mounted = true;
+
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/usage`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            signal: ac.signal,
+          }
+        );
+
+        if (!mounted) return;
+
+        if (res.ok) {
+          const usageData = await res.json();
+          setUsage(usageData);
+        } else if (res.status === 401) {
+          // optionally handle unauthorized silently (e.g. set state)
+        }
+      } catch {
+        // intentionally silent per request — no error output
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      ac.abort();
+    };
+  }, [isLoaded, getToken]);
 
   if (!usage) {
     return (
