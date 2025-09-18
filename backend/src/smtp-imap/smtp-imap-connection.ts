@@ -123,29 +123,17 @@ export async function connectSMTPIMAP(
     }
   });
 
-  if (creds) {
-    const newJob = await queue.add(
-      'smtp-imap-start-listen',
-      {
-        environmentId: environment.id,
-        identifier: identifier,
-        connection: creds,
-      },
-      {
-        removeOnComplete: true,
-      },
-    );
-    const jobId = newJob.id;
-    if (jobId) {
-      await db
-        .update(connectionCredentials)
-        .set({
-          refreshJobId: jobId,
-          lastRefresh: new Date(),
-        })
-        .where(eq(connectionCredentials.id, creds.id));
-    }
-  }
+  await queue.add(
+    'smtp-imap-start-listen',
+    {
+      environmentId: environment.id,
+      identifier: identifier,
+      connection: creds,
+    },
+    {
+      removeOnComplete: true,
+    },
+  );
 }
 
 export async function getSMTPIMAPMessages(

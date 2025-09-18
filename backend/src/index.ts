@@ -14,7 +14,9 @@ import { clerkPlugin } from '@clerk/fastify';
 import rateLimit from '@fastify/rate-limit';
 
 const fastify = Fastify({
-  logger: true,
+  logger: {
+    level: 'info',
+  },
 });
 
 fastify.register(clerkPlugin);
