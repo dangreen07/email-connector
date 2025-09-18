@@ -40,7 +40,7 @@ export default function UsagePage() {
     const result = await fetch(
       `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/usage`,
       {
-        method: "GET",
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
