@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -32,7 +32,7 @@ export default function UsagePage() {
   const [usage, setUsage] = useState<Usage | null>(null);
   const { getToken } = useAuth();
 
-  async function getUsage() {
+  const getUsage = useCallback(async () => {
     const token = await getToken();
     if (!token) {
       return;
@@ -50,15 +50,18 @@ export default function UsagePage() {
       const usage = await result.json();
       setUsage(usage);
     }
-  }
+  }, [getToken]);
 
   useEffect(() => {
     getUsage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [getUsage]);
 
   if (!usage) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex flex-col flex-grow justify-center items-center h-[calc(100vh-15rem)]">
+        Loading...
+      </div>
+    );
   }
 
   // Inboxes (charged per inbox, not "active" logic here)
