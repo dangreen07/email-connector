@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import ManageBillingButton from "@/components/manage-billing-button";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { Usage } from "../../../backend/src/utils/types";
 
 /* Helper for number & currency formatting (locale aware) */
 function formatNumber(n: number) {
@@ -44,32 +45,27 @@ export default async function UsagePage() {
       }),
     }
   );
-  const usage = await result.json();
-
-  if (!usage) {
-    return (
-      <div className="flex flex-col flex-grow justify-center items-center">
-        Loading...
-      </div>
-    );
+  let usage: Usage | null = null;
+  if (result.ok) {
+    usage = (await result.json()) as Usage;
   }
 
   // Inboxes (charged per inbox, not "active" logic here)
-  const inboxesUsed = usage.inboxesUsed ?? 0; // connected inbox count
-  const inboxesIncluded = usage.inboxesIncluded ?? 0;
+  const inboxesUsed = usage?.inboxesUsed ?? 0; // connected inbox count
+  const inboxesIncluded = usage?.inboxesIncluded ?? 0;
   const inboxPct = calcProgress(inboxesUsed, inboxesIncluded);
   const inboxOverageCount = Math.max(0, inboxesUsed - inboxesIncluded);
-  const inboxOveragePrice = usage.inboxOveragePrice ?? 0.25; // USD per inbox
+  const inboxOveragePrice = usage?.inboxOveragePrice ?? 0.25; // USD per inbox
 
   // API calls (billed per-call for calculation purposes)
-  const apiUsed = usage.apiCallsUsed ?? 0;
-  const apiIncluded = usage.apiCallsIncluded ?? 0;
+  const apiUsed = usage?.apiCallsUsed ?? 0;
+  const apiIncluded = usage?.apiCallsIncluded ?? 0;
   const apiOverageCalls = Math.max(0, apiUsed - apiIncluded);
 
   // Display price granularity (per 100k on pricing) but calculate per-call
   const defaultApiPricePer100k = 0.4; // fallback $0.40 per 100k
   const apiPricePer100k =
-    usage.apiOveragePricePer100k ?? defaultApiPricePer100k;
+    usage?.apiOveragePricePer100k ?? defaultApiPricePer100k;
   const apiPricePerCall = apiPricePer100k / 100_000;
   const apiOverage100kUnits = Math.ceil(apiOverageCalls / 100_000);
   const apiOverageCharge = apiOverageCalls * apiPricePerCall;
@@ -85,12 +81,12 @@ export default async function UsagePage() {
         <div>
           <h1 className="text-2xl font-bold">Usage</h1>
           <p className="text-sm text-muted-foreground">
-            Current billing period: {usage.periodStart} — {usage.periodEnd}
+            Current billing period: {usage?.periodStart} — {usage?.periodEnd}
           </p>
         </div>
 
         <div className="flex items-center gap-4">
-          <Badge variant="secondary">{usage.planName ?? "Current plan"}</Badge>
+          <Badge variant="secondary">{usage?.planName ?? "Current plan"}</Badge>
           <ManageBillingButton />
         </div>
       </div>
