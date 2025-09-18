@@ -29,20 +29,20 @@ const ALLOWED_ORIGINS = [process.env.FRONTEND_URL || 'http://localhost:3000'];
 
 fastify.register(cors, {
   origin: (origin, cb) => {
-    if (!origin) {
-      // no origin (e.g., Railway health check, server-to-server)
-      return cb(null, true);
-    }
-    if (ALLOWED_ORIGINS.includes(origin)) {
-      return cb(null, true);
-    }
+    // allow server-to-server or CLI requests with no Origin
+    if (!origin) return cb(null, true);
+
+    // exact allowed list
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+
+    // convenience for local dev (localhost:3000, :3001, etc.)
+    if (origin.startsWith('http://localhost:')) return cb(null, true);
+
+    // reject otherwise
     return cb(null, false);
   },
-  // if you use cookies/auth from the browser:
   credentials: true,
-  // allowed methods (include OPTIONS and HEAD)
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  // optional: tweak headers/age as needed
   allowedHeaders: ['Content-Type', 'Authorization'],
 });
 fastify.register(clerkPlugin);
