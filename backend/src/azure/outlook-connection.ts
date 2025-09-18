@@ -213,7 +213,7 @@ export async function handleOutlookCallback(
     const profile: GraphUser = await graphClient.api('/me').get();
     const email = profile.mail ?? profile.userPrincipalName;
 
-    await db.transaction(async (tx) => {
+    const credentialsId = await db.transaction(async (tx) => {
       // Check if any connections already connect to these credentials
       let result: {
         id: string;
@@ -269,6 +269,7 @@ export async function handleOutlookCallback(
             updatedAt: new Date(),
           })
           .where(eq(connectionCredentials.id, result.id));
+        return result.id;
       } else {
         // Insert new credentials and a new connection
         const result = await tx
@@ -287,6 +288,7 @@ export async function handleOutlookCallback(
           identifier: stateToken.identifier,
           connectionCredentials: result.id,
         });
+        return result.id;
       }
     });
 
@@ -302,7 +304,7 @@ export async function handleOutlookCallback(
         clientState: process.env.AZURE_WEBHOOK_STATE!,
       });
 
-      await queue.add(
+      const jobResult = await queue.add(
         'azure-sub-refresh',
         {
           environmentName: environment.name,
@@ -314,6 +316,14 @@ export async function handleOutlookCallback(
           delay: 50 * 60 * 1000, // Refresh every 50 minutes
         },
       );
+
+      await db
+        .update(connectionCredentials)
+        .set({
+          refreshJobId: jobResult.id,
+          lastRefresh: new Date(),
+        })
+        .where(eq(connectionCredentials.id, credentialsId));
     }
 
     await redis.del(`outlook-state-token:${state}`);

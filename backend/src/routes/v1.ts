@@ -4,6 +4,7 @@ import {
   environments,
   connections,
   connectionCredentials,
+  providers,
 } from '../db/schema';
 import db from '../db';
 import { and, eq } from 'drizzle-orm';
@@ -54,7 +55,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
           .status(401)
           .send({ error: 'Missing authorization header' });
       }
-      const publishableKey = authorization.split(' ')[1];
+      const publishableKey = authorization.split(' ').at(1);
       const query = request.query as {
         providerCode: string;
         identifier: string;
@@ -174,6 +175,159 @@ export default async function v1Routes(fastify: FastifyInstance) {
     },
   );
 
+  // List all connections
+  fastify.get(
+    '/connections',
+    {
+      config: {
+        rateLimit: {
+          max: 300,
+          timeWindow: 1000, // 1 second
+        },
+      },
+    },
+    async function handler(request, response) {
+      const headers = request.headers;
+      const authorization = headers.authorization;
+      if (!authorization) {
+        return response
+          .status(401)
+          .send({ error: 'Missing authorization header' });
+      }
+      const secretKey = authorization.split(' ').at(1);
+      if (!secretKey) {
+        return response.status(401).send({ error: 'Missing Secret Key!' });
+      }
+
+      const connectionList = await db
+        .select({
+          id: connections.id,
+          identifier: connections.identifier,
+          providerCode: connectionCredentials.providerCode,
+          email: connectionCredentials.email,
+          updatedAt: connectionCredentials.updatedAt,
+        })
+        .from(connections)
+        .innerJoin(environments, eq(environments.id, connections.environmentId))
+        .innerJoin(
+          connectionCredentials,
+          eq(connections.connectionCredentials, connectionCredentials.id),
+        )
+        .where(eq(environments.secretKey, secretKey));
+
+      return response.status(200).send(connectionList);
+    },
+  );
+
+  fastify.get(
+    '/connection',
+    {
+      config: {
+        rateLimit: {
+          max: 300,
+          timeWindow: 1000, // 1 second
+        },
+      },
+    },
+    async function handler(request, response) {
+      const headers = request.headers;
+      const authorization = headers.authorization;
+      if (!authorization) {
+        return response
+          .status(401)
+          .send({ error: 'Missing authorization header' });
+      }
+      const secretKey = authorization.split(' ').at(1);
+      if (!secretKey) {
+        return response.status(401).send({ error: 'Missing Secret Key!' });
+      }
+      const query = request.query as {
+        identifier?: string;
+        id?: string;
+      };
+
+      if (query.identifier) {
+        const connectionList = await db
+          .select({
+            id: connections.id,
+            identifier: connections.identifier,
+            providerCode: connectionCredentials.providerCode,
+            email: connectionCredentials.email,
+            updatedAt: connectionCredentials.updatedAt,
+          })
+          .from(connections)
+          .innerJoin(
+            environments,
+            eq(environments.id, connections.environmentId),
+          )
+          .innerJoin(
+            connectionCredentials,
+            eq(connections.connectionCredentials, connectionCredentials.id),
+          )
+          .where(
+            and(
+              eq(environments.secretKey, secretKey),
+              eq(connections.identifier, query.identifier),
+            ),
+          );
+        return response.status(200).send(connectionList);
+      } else if (query.id) {
+        const connectionList = await db
+          .select({
+            id: connections.id,
+            identifier: connections.identifier,
+            providerCode: connectionCredentials.providerCode,
+            email: connectionCredentials.email,
+            updatedAt: connectionCredentials.updatedAt,
+          })
+          .from(connections)
+          .innerJoin(
+            environments,
+            eq(environments.id, connections.environmentId),
+          )
+          .innerJoin(
+            connectionCredentials,
+            eq(connections.connectionCredentials, connectionCredentials.id),
+          )
+          .where(
+            and(
+              eq(environments.secretKey, secretKey),
+              eq(connections.id, query.id),
+            ),
+          );
+        return response.status(200).send(connectionList);
+      } else {
+        return response.status(404).send('identifier or id query required!');
+      }
+    },
+  );
+
+  fastify.delete(
+    '/connection/',
+    {
+      config: {
+        rateLimit: {
+          max: 300,
+          timeWindow: 1000, // 1 second
+        },
+      },
+    },
+    async function handler(request, response) {
+      const headers = request.headers;
+      const authorization = headers.authorization;
+      if (!authorization) {
+        return response
+          .status(401)
+          .send({ error: 'Missing authorization header' });
+      }
+      const secretKey = authorization.split(' ').at(1);
+      if (!secretKey) {
+        return response.status(401).send({ error: 'Missing Secret Key!' });
+      }
+      // TODO: Implement delete functionality
+    },
+  );
+
   // Get messages
   fastify.get(
     '/messages',
@@ -193,7 +347,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
           .status(401)
           .send({ error: 'Missing authorization header' });
       }
-      const secretKey = authorization.split(' ')[1];
+      const secretKey = authorization.split(' ').at(1);
 
       const {
         identifier,
@@ -479,6 +633,23 @@ export default async function v1Routes(fastify: FastifyInstance) {
             .status(500)
             .send({ error: 'Provider is not supported!' });
       }
+    },
+  );
+
+  // Return supported providers
+  fastify.get(
+    '/providers',
+    {
+      config: {
+        rateLimit: {
+          max: 300,
+          timeWindow: 1000, // 1 second
+        },
+      },
+    },
+    async function handler(_, response) {
+      const result = await db.select().from(providers);
+      return response.status(200).send(result);
     },
   );
 

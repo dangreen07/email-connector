@@ -2,6 +2,9 @@ import { getAccessToken } from '../azure/outlook-connection';
 import { getGraphClient } from '../azure/GraphAPI';
 import { queue } from '.';
 import { Job } from 'bullmq';
+import db from '../db';
+import { connectionCredentials, connections } from '../db/schema';
+import { and, eq } from 'drizzle-orm';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const azureSubRefresh = async (job: Job<any, any, string>) => {
@@ -28,7 +31,7 @@ export const azureSubRefresh = async (job: Job<any, any, string>) => {
     clientState: process.env.AZURE_WEBHOOK_STATE!,
   });
 
-  await queue.add(
+  const newJob = await queue.add(
     'azure-sub-refresh',
     {
       environmentName: data.environmentName,
@@ -40,4 +43,32 @@ export const azureSubRefresh = async (job: Job<any, any, string>) => {
       delay: 50 * 60 * 1000, // Refresh every 50 minutes
     },
   );
+
+  const credentialsId = await db
+    .select({ id: connectionCredentials.id })
+    .from(connectionCredentials)
+    .innerJoin(
+      connections,
+      eq(connections.connectionCredentials, connectionCredentials.id),
+    )
+    .where(
+      and(
+        eq(connections.identifier, data.identifier),
+        eq(connections.environmentId, data.environmentId),
+        eq(connectionCredentials.providerCode, 'outlook'),
+      ),
+    )
+    .then((val) => val.at(0)?.id ?? null);
+
+  if (!credentialsId) {
+    return;
+  }
+
+  await db
+    .update(connectionCredentials)
+    .set({
+      refreshJobId: newJob.id,
+      lastRefresh: new Date(),
+    })
+    .where(eq(connectionCredentials.id, credentialsId));
 };

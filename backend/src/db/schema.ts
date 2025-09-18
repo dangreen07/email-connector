@@ -102,6 +102,8 @@ export const connectionCredentials = pgTable('connection_credentials', {
   expiresAt: timestamp('expires_at'),
   credentials: text('credentials'), // Encrypted with AES-256-GCM of JSONified data.
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  refreshJobId: text('refresh_job_id'),
+  lastRefresh: timestamp('last_refresh'),
 });
 
 export const webhooks = pgTable('webhook', {
