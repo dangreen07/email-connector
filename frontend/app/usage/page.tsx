@@ -42,6 +42,7 @@ export default function UsagePage() {
       {
         method: "GET",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
       }

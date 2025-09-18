@@ -18,6 +18,9 @@ import rateLimit from '@fastify/rate-limit';
 import cors from '@fastify/cors';
 import { plans } from './utils/stripe';
 import { Usage } from './utils/types';
+import { config } from 'dotenv';
+
+config({ path: '.env' });
 
 const fastify = Fastify({
   logger: {
