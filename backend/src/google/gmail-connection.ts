@@ -198,7 +198,7 @@ export async function handleGmailCallback(
   // Track whether credentials already existed to prevent duplicate Gmail watch subscriptions
   let credentialsExisted = false;
 
-  await db.transaction(async (tx) => {
+  const credentialsId = await db.transaction(async (tx) => {
     // Check if any connections already connect to these credentials
     let result: {
       id: string;
@@ -256,6 +256,7 @@ export async function handleGmailCallback(
           updatedAt: new Date(),
         })
         .where(eq(connectionCredentials.id, result.id));
+      return result.id;
     } else {
       // Insert new credentials and a new connection
       const result = await tx
@@ -277,6 +278,7 @@ export async function handleGmailCallback(
         identifier: stateToken.identifier,
         connectionCredentials: result.id,
       });
+      return result.id;
     }
   });
 
@@ -312,12 +314,12 @@ export async function handleGmailCallback(
       );
     }
 
-    redis.set(
+    await redis.set(
       `gmail-history-id:${stateToken.environmentId}:${stateToken.identifier}`,
       historyId,
     );
 
-    await queue.add(
+    const newJob = await queue.add(
       'google-watch-refresh',
       {
         identifier: stateToken.identifier,
@@ -329,6 +331,17 @@ export async function handleGmailCallback(
         delay: Number(expirationDate) - currentDatetime - 60 * 60 * 1000, // Subtract 1 hour to ensure no gap period of notifications
       },
     );
+
+    const jobId = newJob.id;
+    if (jobId) {
+      await db
+        .update(connectionCredentials)
+        .set({
+          refreshJobId: jobId,
+          lastRefresh: new Date(),
+        })
+        .where(eq(connectionCredentials.id, credentialsId));
+    }
   }
 
   return response.redirect(stateToken.redirectAfterAuth);

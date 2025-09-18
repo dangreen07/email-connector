@@ -304,7 +304,7 @@ export async function handleOutlookCallback(
         clientState: process.env.AZURE_WEBHOOK_STATE!,
       });
 
-      const jobResult = await queue.add(
+      const newJob = await queue.add(
         'azure-sub-refresh',
         {
           environmentName: environment.name,
@@ -316,14 +316,17 @@ export async function handleOutlookCallback(
           delay: 50 * 60 * 1000, // Refresh every 50 minutes
         },
       );
+      const jobId = newJob.id;
 
-      await db
-        .update(connectionCredentials)
-        .set({
-          refreshJobId: jobResult.id,
-          lastRefresh: new Date(),
-        })
-        .where(eq(connectionCredentials.id, credentialsId));
+      if (jobId) {
+        await db
+          .update(connectionCredentials)
+          .set({
+            refreshJobId: jobId,
+            lastRefresh: new Date(),
+          })
+          .where(eq(connectionCredentials.id, credentialsId));
+      }
     }
 
     await redis.del(`outlook-state-token:${state}`);

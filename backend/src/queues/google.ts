@@ -103,12 +103,12 @@ export const googleWatchRefresh = async (job: Job<any, any, string>) => {
     return;
   }
 
-  redis.set(
+  await redis.set(
     `gmail-history-id:${data.environmentId}:${data.identifier}`,
     historyId,
   );
 
-  await queue.add(
+  const newJob = await queue.add(
     'google-watch-refresh',
     {
       identifier: data.identifier,
@@ -120,4 +120,16 @@ export const googleWatchRefresh = async (job: Job<any, any, string>) => {
       delay: Number(expirationDate) - currentDatetime - 60 * 60 * 1000, // Subtract 1 hour to ensure no gap period of notifications
     },
   );
+  const jobId = newJob.id;
+  if (jobId) {
+    await db
+      .update(connectionCredentials)
+      .set({
+        refreshJobId: connection.connection_credentials.id,
+        lastRefresh: new Date(),
+      })
+      .where(
+        eq(connectionCredentials.id, connection.connection_credentials.id),
+      );
+  }
 };

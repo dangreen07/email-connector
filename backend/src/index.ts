@@ -171,9 +171,19 @@ async function start() {
     );
 
   for (const connection of smtpIMAPConnections) {
-    await queue.add('smtp-imap-start-listen', connection, {
+    const newJob = await queue.add('smtp-imap-start-listen', connection, {
       removeOnComplete: true,
     });
+    const jobId = newJob.id;
+    if (jobId) {
+      await db
+        .update(connectionCredentials)
+        .set({
+          refreshJobId: jobId,
+          lastRefresh: new Date(),
+        })
+        .where(eq(connectionCredentials.id, connection.connection.id));
+    }
   }
 
   try {

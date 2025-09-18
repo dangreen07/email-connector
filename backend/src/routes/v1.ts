@@ -32,6 +32,7 @@ import {
   sendSMTPIMAPEmail,
 } from '../smtp-imap/smtp-imap-connection';
 import { SendEmail, SMTPIMAPCredentials } from '../utils/types';
+import { queue } from '../queues';
 
 export default async function v1Routes(fastify: FastifyInstance) {
   // Returns a link to the provider's OAuth page with a callback URL to our server
@@ -303,7 +304,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
   );
 
   fastify.delete(
-    '/connection/',
+    '/connection',
     {
       config: {
         rateLimit: {
@@ -324,7 +325,50 @@ export default async function v1Routes(fastify: FastifyInstance) {
       if (!secretKey) {
         return response.status(401).send({ error: 'Missing Secret Key!' });
       }
-      // TODO: Implement delete functionality
+      const query = request.query as {
+        id: string;
+      };
+      if (!query.id) {
+        return response.status(401).send({
+          error: 'You need to have the id of the connection as the query param',
+        });
+      }
+      let credentialsId = '';
+      // Remove the refresh job, ensuring it is deleted by catching errors if the job is running
+      while (true) {
+        try {
+          const result = await db
+            .select({
+              refreshJobId: connectionCredentials.refreshJobId,
+              credentialsId: connectionCredentials.id,
+            })
+            .from(connections)
+            .innerJoin(
+              connectionCredentials,
+              eq(connectionCredentials.id, connections.connectionCredentials),
+            )
+            .where(eq(connections.id, query.id))
+            .then((val) => val.at(0) ?? null);
+          if (!result) {
+            return response.status(401).send({
+              error: 'Could not find connection!',
+            });
+          }
+          credentialsId = result.credentialsId;
+          if (result.refreshJobId) {
+            await queue.remove(result.refreshJobId);
+          }
+          break;
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds before trying again
+        }
+      }
+      await db.transaction(async (tx) => {
+        await tx.delete(connections).where(eq(connections.id, query.id));
+        await tx
+          .delete(connectionCredentials)
+          .where(eq(connectionCredentials.id, credentialsId));
+      });
     },
   );
 

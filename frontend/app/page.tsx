@@ -108,10 +108,10 @@ export default async function Home() {
                 src="https://img.icons8.com/color/96/microsoft-outlook-2019--v2.png"
               />
               <Image
-                width={36}
-                height={36}
+                width={40}
+                height={40}
                 alt="email-logo"
-                src="https://img.icons8.com/ios/100/secured-letter--v1.png"
+                src="https://img.icons8.com/plasticine/100/new-post--v1.png"
               />
             </div>
           </div>
