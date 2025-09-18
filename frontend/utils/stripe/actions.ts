@@ -80,6 +80,7 @@ export async function createCheckoutLink(plan: "Basic" | "Growth" | "Scale") {
       success_url: `${process.env.BASE_URL}/success`,
       cancel_url: `${process.env.BASE_URL}/`,
       mode: "subscription",
+      allow_promotion_codes: true,
     });
 
     if (result?.url) {
