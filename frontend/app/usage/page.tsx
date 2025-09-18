@@ -38,12 +38,10 @@ export default function UsagePage() {
       const result = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/usage`,
         {
-          method: "POST",
+          method: "GET",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ data: "bla bla bla!" }),
         }
       );
       if (result.status == 200) {

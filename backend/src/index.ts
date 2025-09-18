@@ -272,14 +272,11 @@ fastify.post('/export-logs', async (request, response) => {
   }
 });
 
-fastify.post('/usage', async (request, response) => {
+fastify.get('/usage', async (request, response) => {
   const { userId } = getAuth(request);
   if (!userId) {
     return response.status(401).send('Unauthorized!');
   }
-  request.log.info({
-    headers: request.headers,
-  });
   const [environmentList, subscription] = await Promise.all([
     db
       .select({ environmentId: environments.id })
