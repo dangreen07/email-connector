@@ -1,14 +1,12 @@
-"use client";
-
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowUp } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Usage } from "../../../backend/src/utils/types";
 import ManageBillingButton from "@/components/manage-billing-button";
-import { useAuth } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 /* Helper for number & currency formatting (locale aware) */
 function formatNumber(n: number) {
@@ -28,50 +26,25 @@ function calcProgress(used: number, included: number) {
   return pct;
 }
 
-export default function UsagePage() {
-  const [usage, setUsage] = useState<Usage | null>(null);
-  const { getToken, isLoaded } = useAuth();
-
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    const ac = new AbortController();
-    let mounted = true;
-
-    (async () => {
-      try {
-        const token = await getToken();
-        if (!token) return;
-
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/usage`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            signal: ac.signal,
-          }
-        );
-
-        if (!mounted) return;
-
-        if (res.ok) {
-          const usageData = await res.json();
-          setUsage(usageData);
-        } else if (res.status === 401) {
-          // optionally handle unauthorized silently (e.g. set state)
-        }
-      } catch {
-        // intentionally silent per request — no error output
-      }
-    })();
-
-    return () => {
-      mounted = false;
-      ac.abort();
-    };
-  }, [isLoaded, getToken]);
+export default async function UsagePage() {
+  const user = await currentUser();
+  if (!user) {
+    return redirect("/sign-in");
+  }
+  const result = await fetch(
+    `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/usage`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.ADMIN_KEY}`,
+      },
+      body: JSON.stringify({
+        userId: user.id,
+      }),
+    }
+  );
+  const usage = await result.json();
 
   if (!usage) {
     return (

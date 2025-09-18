@@ -272,10 +272,21 @@ fastify.post('/export-logs', async (request, response) => {
   }
 });
 
-fastify.get('/usage', async (request, response) => {
-  const { userId } = getAuth(request);
+fastify.post('/usage', async (request, response) => {
+  const headers = request.headers;
+  const authorization = headers.authorization;
+  if (!authorization) {
+    return response.status(401).send({ error: 'Missing authorization header' });
+  }
+  const adminKey = authorization.split(' ').at(1);
+  if (!adminKey) {
+    return response.status(401).send('Missing adminKey');
+  }
+  const { userId } = request.body as {
+    userId: string;
+  };
   if (!userId) {
-    return response.status(401).send('Unauthorized!');
+    return response.status(401).send('Invalid Body');
   }
   const [environmentList, subscription] = await Promise.all([
     db
