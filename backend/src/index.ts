@@ -26,6 +26,7 @@ fastify.register(rateLimit, {
     if (!key) {
       return req.ip; // If no key, return IP
     }
+    req.log.info(`Incoming request from: ${req.ip}`);
     let userId: string | null = null;
 
     userId = await redis.get(`apiKey:${key}:userId`);
