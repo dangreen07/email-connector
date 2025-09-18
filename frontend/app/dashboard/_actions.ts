@@ -501,6 +501,10 @@ export async function getLogsPage(
   page = 1,
   pageSize = 50
 ): Promise<PageResult> {
+  const { userId } = await auth();
+  if (!userId) {
+    return { logs: [], total: 0 };
+  }
   if (!environmentId) return { logs: [], total: 0 };
 
   const offset = Math.max(0, page - 1) * pageSize;
@@ -509,6 +513,8 @@ export async function getLogsPage(
     db
       .select()
       .from(logs)
+      .innerJoin(environments, eq(environments.id, logs.environmentId))
+      .innerJoin(projects, eq(projects.id, environments.projectId))
       .where(eq(logs.environmentId, environmentId))
       .orderBy(desc(logs.requestAt))
       .limit(pageSize)
@@ -516,6 +522,8 @@ export async function getLogsPage(
     db
       .select({ count: count() })
       .from(logs)
+      .innerJoin(environments, eq(environments.id, logs.environmentId))
+      .innerJoin(projects, eq(projects.id, environments.projectId))
       .where(eq(logs.environmentId, environmentId)),
   ]);
 
