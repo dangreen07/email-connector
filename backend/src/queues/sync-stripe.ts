@@ -10,7 +10,7 @@ import {
 } from '../db/schema';
 import { count, eq, inArray } from 'drizzle-orm';
 import redis from '../redis';
-import { stripe } from '../utils/stripe';
+import { plans, stripe } from '../utils/stripe';
 
 export async function UsageReport(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,17 +62,17 @@ export async function UsageReport(
   let includedInboxes = 0;
 
   switch (subscription.productId) {
-    case process.env.STRIPE_BASIC_PRODUCT!:
-      includedAPICalls = 500_000;
-      includedInboxes = 50;
+    case plans.Basic.productId:
+      includedAPICalls = plans.Basic.apiCalls;
+      includedInboxes = plans.Basic.inboxes;
       break;
-    case process.env.STRIPE_GROWTH_PRODUCT!:
-      includedAPICalls = 5_000_000;
-      includedInboxes = 1_000;
+    case plans.Growth.productId:
+      includedAPICalls = plans.Growth.apiCalls;
+      includedInboxes = plans.Growth.inboxes;
       break;
-    case process.env.STRIPE_SCALE_PRODUCT!:
-      includedAPICalls = 20_000_000;
-      includedInboxes = 5_000;
+    case plans.Scale.productId:
+      includedAPICalls = plans.Scale.apiCalls;
+      includedInboxes = plans.Scale.inboxes;
       break;
   }
 

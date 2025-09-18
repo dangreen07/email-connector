@@ -1,11 +1,14 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowUp } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { fetchUsage } from "./actions";
+import { Usage } from "../../../backend/src/utils/types";
 import ManageBillingButton from "@/components/manage-billing-button";
+import { useAuth } from "@clerk/nextjs";
 
 /* Helper for number & currency formatting (locale aware) */
 function formatNumber(n: number) {
@@ -25,8 +28,38 @@ function calcProgress(used: number, included: number) {
   return pct;
 }
 
-export default async function UsagePage() {
-  const usage = await fetchUsage();
+export default function UsagePage() {
+  const [usage, setUsage] = useState<Usage | null>(null);
+  const { getToken } = useAuth();
+
+  async function getUsage() {
+    const token = await getToken();
+    if (!token) {
+      return;
+    }
+    const result = await fetch(
+      `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/usage`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    if (result.status == 200) {
+      const usage = await result.json();
+      setUsage(usage);
+    }
+  }
+
+  useEffect(() => {
+    getUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!usage) {
+    return <div>Loading...</div>;
+  }
 
   // Inboxes (charged per inbox, not "active" logic here)
   const inboxesUsed = usage.inboxesUsed ?? 0; // connected inbox count
@@ -51,7 +84,7 @@ export default async function UsagePage() {
   const inboxOverageCharge = inboxOverageCount * inboxOveragePrice;
   const totalEstimatedOverage = inboxOverageCharge + apiOverageCharge;
 
-  const currency = usage.currency ?? "USD";
+  const currency = "USD";
 
   return (
     <div className="container mx-auto py-10">
@@ -59,9 +92,7 @@ export default async function UsagePage() {
         <div>
           <h1 className="text-2xl font-bold">Usage</h1>
           <p className="text-sm text-muted-foreground">
-            Current billing period:{" "}
-            {new Date(usage.periodStart).toLocaleDateString()} —{" "}
-            {new Date(usage.periodEnd).toLocaleDateString()}
+            Current billing period: {usage.periodStart} — {usage.periodEnd}
           </p>
         </div>
 

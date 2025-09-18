@@ -8,12 +8,16 @@ import {
   environments,
   logs,
   projects,
+  subscriptions,
+  users,
 } from './db/schema';
-import { and, eq, isNotNull, or } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, or } from 'drizzle-orm';
 import { queue } from './queues';
 import { clerkPlugin, getAuth } from '@clerk/fastify';
 import rateLimit from '@fastify/rate-limit';
 import cors from '@fastify/cors';
+import { plans } from './utils/stripe';
+import { Usage } from './utils/types';
 
 const fastify = Fastify({
   logger: {
@@ -87,6 +91,7 @@ fastify.register(rateLimit, {
 
 const LOGGED_ENDPOINTS = [
   '/v1/connection',
+  '/v1/connections',
   '/v1/messages',
   '/v1/messages/by-id',
 ];
@@ -262,6 +267,98 @@ fastify.post('/export-logs', async (request, response) => {
     request.log?.error?.({ err }, 'Failed to generate CSV for export');
     return response.status(500).send('Failed to export logs');
   }
+});
+
+fastify.get('/usage', async (request, response) => {
+  const { userId } = getAuth(request);
+  if (!userId) {
+    return response.status(401).send('Unauthorized!');
+  }
+  const [environmentList, subscription] = await Promise.all([
+    db
+      .select({ environmentId: environments.id })
+      .from(environments)
+      .innerJoin(projects, eq(projects.id, environments.projectId))
+      .where(eq(projects.userId, userId)),
+    db
+      .select({ subscriptions })
+      .from(subscriptions)
+      .innerJoin(users, eq(users.stripeCustomerId, subscriptions.customerId))
+      .where(eq(users.clerkUserId, userId))
+      .then((val) => val.at(0)?.subscriptions ?? null),
+  ]);
+
+  if (!subscription || subscription.status == 'cancelled') {
+    return response.status(401).send('No subscription');
+  }
+
+  const [inboxConnections] = await db
+    .select({ count: count() })
+    .from(connectionCredentials)
+    .innerJoin(
+      connections,
+      eq(connections.connectionCredentials, connectionCredentials.id),
+    )
+    .where(
+      inArray(
+        connections.environmentId,
+        environmentList.map((item) => item.environmentId),
+      ),
+    );
+
+  let planName: 'Basic' | 'Growth' | 'Scale' = 'Basic';
+  let includedAPICalls = 0;
+  let includedInboxes = 0;
+  let perInboxPrice = 0.25;
+  let extraAPICallsPrice = 0.4; // Price per 100k calls
+  switch (subscription.productId) {
+    case plans.Basic.productId:
+      planName = 'Basic';
+      includedAPICalls = plans.Basic.apiCalls;
+      includedInboxes = plans.Basic.inboxes;
+      perInboxPrice = plans.Basic.inboxPrice;
+      extraAPICallsPrice = plans.Basic.apiCallsPrice;
+      break;
+    case plans.Growth.productId:
+      planName = 'Growth';
+      includedAPICalls = plans.Growth.apiCalls;
+      includedInboxes = plans.Growth.inboxes;
+      perInboxPrice = plans.Growth.inboxPrice;
+      extraAPICallsPrice = plans.Growth.apiCallsPrice;
+      break;
+    case plans.Scale.productId:
+      planName = 'Scale';
+      includedAPICalls = plans.Scale.apiCalls;
+      includedInboxes = plans.Scale.inboxes;
+      perInboxPrice = plans.Scale.inboxPrice;
+      extraAPICallsPrice = plans.Scale.apiCallsPrice;
+      break;
+  }
+
+  const apiCallsList = await Promise.all(
+    environmentList.map((item) => redis.get(`api-calls:${item.environmentId}`)),
+  ).then((val) => val.filter((item) => item !== null));
+
+  const totalAPICalls = apiCallsList.reduce((total, curr) => {
+    return total + Number(curr);
+  }, 0);
+
+  const usage: Usage = {
+    periodStart: subscription.currentPeriodStart.toDateString(),
+    periodEnd: subscription.currentPeriodEnd.toDateString(),
+
+    planName: planName,
+    inboxesUsed: inboxConnections.count,
+    inboxesIncluded: includedInboxes,
+    inboxOveragePrice: perInboxPrice,
+
+    apiCallsUsed: totalAPICalls,
+    apiCallsIncluded: includedAPICalls,
+    apiCallBillingUnit: 100_000,
+    apiOveragePricePer100k: extraAPICallsPrice,
+  };
+
+  return response.status(200).send(usage);
 });
 
 // Run the server!
