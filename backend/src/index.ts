@@ -272,7 +272,7 @@ fastify.post('/export-logs', async (request, response) => {
   }
 });
 
-fastify.get('/usage', async (request, response) => {
+fastify.post('/usage', async (request, response) => {
   const { userId } = getAuth(request);
   if (!userId) {
     return response.status(401).send('Unauthorized!');

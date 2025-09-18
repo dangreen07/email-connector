@@ -33,23 +33,25 @@ export default function UsagePage() {
   const { getToken } = useAuth();
 
   const getUsage = async () => {
-    const token = await getToken();
-    if (!token) {
-      return;
-    }
-    const result = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/usage`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+    try {
+      const token = await getToken();
+      const result = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/usage`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ data: "bla bla bla!" }),
+        }
+      );
+      if (result.status == 200) {
+        const usage = await result.json();
+        setUsage(usage);
       }
-    );
-    if (result.status == 200) {
-      const usage = await result.json();
-      setUsage(usage);
+    } catch {
+      console.error("Failed to get usage!");
     }
   };
 
