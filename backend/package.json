@@ -30,6 +30,7 @@
     "@azure/identity": "^4.11.1",
     "@azure/msal-node": "^3.7.1",
     "@clerk/fastify": "^2.4.30",
+    "@fastify/cors": "^11.1.0",
     "@fastify/rate-limit": "^10.3.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@neondatabase/serverless": "^0.10.4",

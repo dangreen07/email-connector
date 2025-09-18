@@ -174,8 +174,8 @@ export default function LogsViewer({
                       className={`whitespace-pre-wrap break-all text-xs rounded p-1 ${
                         canToggleQuery
                           ? isQueryExpanded
-                            ? "" // expanded: no internal scrollbar — content grows naturally
-                            : "max-h-20 overflow-hidden" // collapsed: hide overflow (no scrollbar)
+                            ? ""
+                            : "max-h-20 overflow-hidden"
                           : ""
                       }`}
                     >
@@ -201,8 +201,8 @@ export default function LogsViewer({
                       className={`whitespace-pre-wrap break-all text-xs rounded p-1 ${
                         canToggleBody
                           ? isBodyExpanded
-                            ? "" // expanded: no internal scrollbar
-                            : "max-h-20 overflow-hidden" // collapsed: hide overflow
+                            ? ""
+                            : "max-h-20 overflow-hidden"
                           : ""
                       }`}
                     >
@@ -226,10 +226,12 @@ export default function LogsViewer({
         </tbody>
       </table>
 
-      {/* Pagination controls */}
+      {/* Pagination controls + Export */}
       <div className="p-3 flex items-center justify-between border-t">
-        <div className="text-sm text-muted-foreground">
-          Showing page {currentPage} of {totalPages} ({total} logs)
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-muted-foreground">
+            Showing page {currentPage} of {totalPages} ({total} logs)
+          </div>
         </div>
 
         <nav className="flex items-center gap-2">

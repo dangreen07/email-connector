@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { UpdateEnvironmentSettings } from "../../_actions";
 import { DashboardProvider } from "@/utils/types";
 import { Webhook, Log } from "@/utils/db/schema";
+import { useAuth } from "@clerk/nextjs";
 
 export default function EnvironmentDashboard(props: {
   projectId: string;
@@ -60,6 +61,8 @@ export default function EnvironmentDashboard(props: {
     gmailTopicName,
     setChanged,
   } = useDashboardStore((state) => state);
+  const [exporting, setExporting] = useState(false);
+  const { getToken } = useAuth();
 
   const enabledProviderToBoolean = useCallback(
     (provider: string): boolean =>
@@ -86,6 +89,56 @@ export default function EnvironmentDashboard(props: {
     },
     [providers]
   );
+
+  async function exportCsv() {
+    if (!environmentId) {
+      console.error("No environment selected");
+      return;
+    }
+    setExporting(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/export-logs`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ environmentId }),
+        }
+      );
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        console.error("Export failed", errJson);
+        return;
+      }
+
+      const { filename, base64 } = await res.json();
+      if (!base64) {
+        console.error("No data returned for export");
+        return;
+      }
+
+      // Convert base64 to binary and trigger download
+      const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([binary], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename ?? `logs-${environmentId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export logs", err);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   useEffect(() => {
     const gmailCredentials = getProviderCredentials("gmail") as {
@@ -153,6 +206,11 @@ export default function EnvironmentDashboard(props: {
           </TabsList>
 
           <div className="flex gap-2">
+            {currentTab == "logs" && (
+              <Button disabled={exporting} onClick={exportCsv}>
+                {exporting ? "Getting Logs..." : "Export Logs"}
+              </Button>
+            )}
             <Button
               variant="default"
               disabled={!changed}

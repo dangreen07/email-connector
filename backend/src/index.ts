@@ -6,12 +6,14 @@ import {
   connectionCredentials,
   connections,
   environments,
+  logs,
   projects,
 } from './db/schema';
 import { and, eq, isNotNull, or } from 'drizzle-orm';
 import { queue } from './queues';
-import { clerkPlugin } from '@clerk/fastify';
+import { clerkPlugin, getAuth } from '@clerk/fastify';
 import rateLimit from '@fastify/rate-limit';
+import cors from '@fastify/cors';
 
 const fastify = Fastify({
   logger: {
@@ -19,6 +21,10 @@ const fastify = Fastify({
   },
 });
 
+fastify.register(cors, {
+  origin: process.env.FRONTEND_URL!,
+  allowedHeaders: '*',
+});
 fastify.register(clerkPlugin);
 fastify.register(rateLimit, {
   keyGenerator: async (req) => {
@@ -150,6 +156,96 @@ fastify.register(v1Routes, { prefix: '/v1' });
 
 fastify.get('/health', (request, response) => {
   return response.status(200).send('I am alive! Yippeee!');
+});
+
+fastify.post('/export-logs', async (request, response) => {
+  const { userId } = getAuth(request);
+  if (!userId) {
+    return response.status(401).send('Unauthorized!');
+  }
+  const body = request.body as {
+    environmentId: string;
+  };
+  if (!body.environmentId) {
+    return response
+      .status(402)
+      .send('EnvironmentId must be given in the body!');
+  }
+
+  const logList = await db
+    .select({ logs })
+    .from(logs)
+    .innerJoin(environments, eq(environments.id, logs.environmentId))
+    .innerJoin(projects, eq(projects.id, environments.projectId))
+    .where(
+      and(
+        eq(projects.userId, userId),
+        eq(logs.environmentId, body.environmentId),
+      ),
+    );
+
+  try {
+    // Helper to CSV-escape a cell
+    function escapeCsvCell(v: unknown) {
+      const s = v == null ? '' : String(v);
+      if (s.includes('"')) return `"${s.replace(/"/g, '""')}"`;
+      if (s.includes(',') || s.includes('\n') || s.includes('\r')) {
+        return `"${s}"`;
+      }
+      return s;
+    }
+
+    const header = [
+      'time',
+      'method',
+      'route',
+      'statusCode',
+      'duration',
+      'query',
+      'body',
+    ].join(',');
+
+    const rows = logList.map((row) => {
+      // adjust these field accesses if your schema keys differ
+      const log = row.logs;
+
+      const time = log.requestAt
+        ? new Date(log.requestAt as unknown as string).toISOString()
+        : '';
+      const method = log.method ?? '';
+      const route = log.route ?? '';
+      const status = log.statusCode ?? '';
+      // ensure numeric durations formatted consistently
+      const duration =
+        typeof log.duration === 'number'
+          ? log.duration.toFixed(2)
+          : (log.duration ?? '');
+      const query = log.query ?? '';
+      const bodyCell = log.body ?? '';
+
+      return [
+        escapeCsvCell(time),
+        escapeCsvCell(method),
+        escapeCsvCell(route),
+        escapeCsvCell(status),
+        escapeCsvCell(duration),
+        escapeCsvCell(query),
+        escapeCsvCell(bodyCell),
+      ].join(',');
+    });
+
+    const csv = [header, ...rows].join('\r\n');
+
+    const base64 = Buffer.from(csv, 'utf-8').toString('base64');
+    const filename = `logs-${body.environmentId}-${new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')}.csv`;
+
+    return response.status(200).send({ filename, base64 });
+  } catch (err) {
+    request.log?.error?.({ err }, 'Failed to generate CSV for export');
+    return response.status(500).send('Failed to export logs');
+  }
 });
 
 // Run the server!
