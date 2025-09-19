@@ -113,7 +113,7 @@ export async function SyncStripe(
     .where(eq(subscriptions.customerId, customerId))
     .then((val) => val.at(0) ?? null);
   const jobKey = `stripe-sync:${customerId}`;
-  console.log(`Subscription: ${subscriptions}`);
+  console.log(`Subscription: ${JSON.stringify(subscription)}`);
   console.log(`Job Key: ${jobKey}`);
   if (!subscription || subscription.subscriptions.status == 'cancelled') {
     try {

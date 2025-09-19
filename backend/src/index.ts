@@ -374,6 +374,7 @@ fastify.post('/sync-stripe', async (request, response) => {
   const { customerId } = request.body as {
     customerId: string;
   };
+  console.log(`Customer Id: ${customerId}`);
   await queue.add('sync-stripe', {
     customerId: customerId,
   });
