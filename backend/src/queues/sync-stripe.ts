@@ -113,13 +113,15 @@ export async function SyncStripe(
     .where(eq(subscriptions.customerId, customerId))
     .then((val) => val.at(0) ?? null);
   const jobKey = `stripe-sync:${customerId}`;
+  console.log(`Subscription: ${subscriptions}`);
+  console.log(`Job Key: ${jobKey}`);
   if (!subscription || subscription.subscriptions.status == 'cancelled') {
     try {
       // Ensure no job exists to update usage 5 minutes before the renewal
       const jobState = await queue.getJobState(jobKey);
       if (jobState == 'waiting') {
         // Delete the job
-        queue.remove(jobKey);
+        await queue.remove(jobKey);
       }
     } catch {
       // This is fine
