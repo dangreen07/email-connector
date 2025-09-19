@@ -13,42 +13,23 @@ import {
 } from './db/schema';
 import { and, count, eq, inArray, isNotNull, or } from 'drizzle-orm';
 import { queue } from './queues';
-import { clerkPlugin, getAuth } from '@clerk/fastify';
+import { getAuth } from '@clerk/fastify';
 import rateLimit from '@fastify/rate-limit';
-import cors from '@fastify/cors';
-import { plans } from './utils/stripe';
-import { Usage } from './utils/types';
 import { config } from 'dotenv';
+import { startServer } from './fastify';
+import { Usage } from './utils/types';
+import { plans } from './utils/stripe';
 
 config({ path: '.env' });
 
 const fastify = Fastify({
   logger: {
-    level: 'info',
+    level: process.env.NODE_ENV == 'development' ? 'debug' : 'info',
   },
 });
 
-const ALLOWED_ORIGINS = [process.env.FRONTEND_URL || 'http://localhost:3000'];
+const ADMIN_KEY = process.env.ADMIN_KEY!;
 
-fastify.register(cors, {
-  origin: (origin, cb) => {
-    // allow server-to-server or CLI requests with no Origin
-    if (!origin) return cb(null, true);
-
-    // exact allowed list
-    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-
-    // convenience for local dev (localhost:3000, :3001, etc.)
-    if (origin.startsWith('http://localhost:')) return cb(null, true);
-
-    // reject otherwise
-    return cb(null, false);
-  },
-  credentials: true,
-  methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-});
-fastify.register(clerkPlugin);
 fastify.register(rateLimit, {
   keyGenerator: async (req) => {
     const headers = req.headers;
@@ -151,7 +132,6 @@ fastify.addHook('onResponse', async (req, reply) => {
       'usage-report',
       {
         userId,
-        currentAPICalls: currentValue,
       },
       {
         removeOnComplete: true,
@@ -282,6 +262,9 @@ fastify.post('/usage', async (request, response) => {
   if (!adminKey) {
     return response.status(401).send('Missing adminKey');
   }
+  if (adminKey != ADMIN_KEY) {
+    return response.status(401).send('Admin key invalid!');
+  }
   const { userId } = request.body as {
     userId: string;
   };
@@ -375,6 +358,29 @@ fastify.post('/usage', async (request, response) => {
   return response.status(200).send(usage);
 });
 
+fastify.post('/sync-stripe', async (request, response) => {
+  const headers = request.headers;
+  const authorization = headers.authorization;
+  if (!authorization) {
+    return response.status(401).send({ error: 'Missing authorization header' });
+  }
+  const adminKey = authorization.split(' ').at(1);
+  if (!adminKey) {
+    return response.status(401).send('Missing adminKey');
+  }
+  if (adminKey != ADMIN_KEY) {
+    return response.status(401).send('Admin key invalid!');
+  }
+  const { customerId } = request.body as {
+    customerId: string;
+  };
+  await queue.add('sync-stripe', {
+    customerId: customerId,
+  });
+
+  return response.status(200).send();
+});
+
 // Run the server!
 async function start() {
   await redis.connect();
@@ -413,11 +419,7 @@ async function start() {
     }
   }
 
-  try {
-    await fastify.listen({ host: '0.0.0.0', port: 8080 });
-  } catch (err) {
-    fastify.log.error(err);
-  }
+  await startServer(fastify);
 }
 
 start();

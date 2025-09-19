@@ -11,10 +11,11 @@ import {
 import { count, eq, inArray } from 'drizzle-orm';
 import redis from '../redis';
 import { plans, stripe } from '../utils/stripe';
+import { queue } from '.';
 
 export async function UsageReport(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  job: Job<{ userId: string; currentAPICalls: number }, any, string>,
+  job: Job<{ userId: string }, any, string>,
 ) {
   const data = job.data;
 
@@ -96,5 +97,58 @@ export async function UsageReport(
         stripe_customer_id: subscription.customerId,
       },
     });
+  }
+}
+
+export async function SyncStripe(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  theJob: Job<{ customerId: string }, any, string>,
+) {
+  const customerId = theJob.data.customerId;
+
+  const subscription = await db
+    .select()
+    .from(subscriptions)
+    .innerJoin(users, eq(users.stripeCustomerId, subscriptions.customerId))
+    .where(eq(subscriptions.customerId, customerId))
+    .then((val) => val.at(0) ?? null);
+  const jobKey = `stripe-sync:${customerId}`;
+  if (!subscription || subscription.subscriptions.status == 'cancelled') {
+    try {
+      // Ensure no job exists to update usage 5 minutes before the renewal
+      const jobState = await queue.getJobState(jobKey);
+      if (jobState == 'waiting') {
+        // Delete the job
+        queue.remove(jobKey);
+      }
+    } catch {
+      // This is fine
+    }
+    return;
+  }
+  // Ensure the queue job exists and has the right data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const job = (await queue.getJob(jobKey)) as Job<any, any, string> | undefined;
+  const targetDate = subscription.subscriptions.currentPeriodEnd;
+  const delay = targetDate.getTime() - Date.now() - 5 * 60 * 1000; // 5 minutes before the end
+  if (!job) {
+    // Create the job
+    await queue.add(
+      'usage-report',
+      {
+        userId: subscription.users.clerkUserId,
+      },
+      {
+        jobId: jobKey,
+        delay: delay,
+      },
+    );
+  } else {
+    // Attempt to change it's delay
+    try {
+      await job.changeDelay(delay);
+    } catch {
+      // Do nothing
+    }
   }
 }

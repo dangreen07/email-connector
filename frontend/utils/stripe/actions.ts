@@ -120,6 +120,15 @@ export async function syncWithStripe(customerId: string) {
       customer: customerId,
     })
     .then((val) => val.data.at(0) ?? null); // Currently only allowing one subscription
+  await fetch(`${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/sync-stripe`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.ADMIN_KEY}`,
+    },
+    body: JSON.stringify({
+      customerId: customerId,
+    }),
+  });
   if (!subscription) {
     // Ensure the subscription is marked as cancelled
     await db
