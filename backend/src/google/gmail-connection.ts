@@ -291,12 +291,29 @@ export async function handleGmailCallback(
   }
 
   if (environment.name == 'production') {
+    const encryptedCredentials = await db
+      .select()
+      .from(connectedProviders)
+      .where(eq(connectedProviders.environmentId, environment.id))
+      .then((val) => val.at(0)?.credentials ?? null);
+    if (!encryptedCredentials) {
+      return response
+        .status(500)
+        .send('Credentials required for production instances');
+    }
+    const credentials = JSON.parse(
+      decrypt(encryptedCredentials, process.env.CRED_ENCRYPTION_KEY!),
+    ) as {
+      clientId: string;
+      clientSecret: string;
+      topicName: string;
+    };
     const gmail = google.gmail({ version: 'v1', auth: client });
 
     const watchResult = await gmail.users.watch({
       userId: 'me',
       requestBody: {
-        topicName: process.env.GOOGLE_TOPIC_NAME!,
+        topicName: credentials.topicName,
         labelIds: ['INBOX'],
       },
     });
@@ -339,8 +356,73 @@ export async function handleGmailCallback(
         .set({
           refreshJobId: jobId,
           lastRefresh: new Date(),
+          webhookStarted: true,
         })
         .where(eq(connectionCredentials.id, credentialsId));
+    }
+  } else {
+    // Development webhook starting is a little different
+    const webhookStarted = await db
+      .select()
+      .from(connectionCredentials)
+      .where(eq(connectionCredentials.id, credentialsId))
+      .then((val) => val.at(0)?.webhookStarted ?? null);
+    if (webhookStarted == null) {
+      // How the hell did this happen?
+      throw Error(
+        'Error in the webhook setup trying to get something that should exist',
+      );
+    }
+    if (!webhookStarted) {
+      const gmail = google.gmail({ version: 'v1', auth: client });
+
+      const watchResult = await gmail.users.watch({
+        userId: 'me',
+        requestBody: {
+          topicName: process.env.GOOGLE_TOPIC_NAME!,
+          labelIds: ['INBOX'],
+        },
+      });
+
+      const currentDatetime = new Date().getTime();
+
+      const historyId = watchResult.data.historyId;
+      const expirationDate = watchResult.data.expiration;
+      if (!historyId || !expirationDate) {
+        throw Error(
+          'Failed to set up webhook subscription, contact site support!',
+        );
+      }
+
+      await redis.set(
+        `gmail-history-id:${stateToken.environmentId}:${stateToken.identifier}`,
+        historyId,
+      );
+
+      const newJob = await queue.add(
+        'google-watch-refresh',
+        {
+          identifier: stateToken.identifier,
+          environmentId: stateToken.environmentId,
+          environmentName: environment.name,
+        },
+        {
+          removeOnComplete: true,
+          delay: Number(expirationDate) - currentDatetime - 60 * 60 * 1000, // Subtract 1 hour to ensure no gap period of notifications
+        },
+      );
+
+      const jobId = newJob.id;
+      if (jobId) {
+        await db
+          .update(connectionCredentials)
+          .set({
+            refreshJobId: jobId,
+            lastRefresh: new Date(),
+            webhookStarted: true,
+          })
+          .where(eq(connectionCredentials.id, credentialsId));
+      }
     }
   }
 
