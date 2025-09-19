@@ -371,6 +371,7 @@ fastify.post('/sync-stripe', async (request, response) => {
   if (adminKey != ADMIN_KEY) {
     return response.status(401).send('Admin key invalid!');
   }
+  console.log(`Request body: ${request.body}`);
   const { customerId } = request.body as {
     customerId: string;
   };

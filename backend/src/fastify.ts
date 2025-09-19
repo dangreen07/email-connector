@@ -1,5 +1,4 @@
 import { FastifyInstance } from 'fastify';
-import rawBody from 'fastify-raw-body';
 import cors from '@fastify/cors';
 import { clerkPlugin } from '@clerk/fastify';
 
@@ -7,12 +6,6 @@ const ALLOWED_ORIGINS = [process.env.FRONTEND_URL || 'http://localhost:3000'];
 
 export async function startServer(fastify: FastifyInstance) {
   try {
-    await fastify.register(rawBody, {
-      field: 'rawBody', // makes request.rawBody available
-      global: false, // only enabled on routes you opt into
-      encoding: 'utf8', // gives a string (Stripe accepts string or Buffer)
-      runFirst: true, // ensure this runs before other content type parsers
-    });
     await fastify.register(cors, {
       origin: (origin, cb) => {
         // allow server-to-server or CLI requests with no Origin
