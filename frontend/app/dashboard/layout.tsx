@@ -60,9 +60,7 @@ export default async function DashboardLayout({
         projects={projectsFull}
         subscriptionStatus={subscription?.status}
       />
-      <div className="overflow-y-scroll h-[calc(100vh-9.5rem)] overscroll-contain">
-        {children}
-      </div>
+      <div className="min-h-[calc(100vh-9.5rem)]">{children}</div>
     </DashboardStoreProvider>
   );
 }

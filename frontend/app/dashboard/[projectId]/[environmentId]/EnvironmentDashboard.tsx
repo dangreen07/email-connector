@@ -2,6 +2,13 @@
 
 import Container from "@/components/Container";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { useCallback, useEffect, useState } from "react";
 import { useDashboardStore } from "@/lib/dashboard/dashboard-store-provider";
 import {
@@ -197,13 +204,35 @@ export default function EnvironmentDashboard(props: {
         className="py-3"
       >
         <div className="flex justify-between">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="providers">Providers</TabsTrigger>
-            <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
-            <TabsTrigger value="settings">Project Settings</TabsTrigger>
-          </TabsList>
+          {/* Desktop/Tablet tabs */}
+          <div className="hidden md:block">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="providers">Providers</TabsTrigger>
+              <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+              <TabsTrigger value="logs">Logs</TabsTrigger>
+              <TabsTrigger value="settings">Project Settings</TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* Mobile: use a dropdown/select instead of horizontal tabs */}
+          <div className="md:hidden w-full mr-3">
+            <Select
+              value={currentTab}
+              onValueChange={(v) => setCurrentTab(v as typeof currentTab)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="overview">Overview</SelectItem>
+                <SelectItem value="providers">Providers</SelectItem>
+                <SelectItem value="webhooks">Webhooks</SelectItem>
+                <SelectItem value="logs">Logs</SelectItem>
+                <SelectItem value="settings">Project Settings</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="flex gap-2">
             {currentTab == "logs" && (
@@ -251,29 +280,29 @@ export default function EnvironmentDashboard(props: {
           </div>
         </div>
 
-        <TabsContent value="overview" className="mt-3">
-          <div className="grid gap-6 lg:grid-cols-3">
+        <TabsContent value="overview" className="mt-3 flex-none">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 items-start gap-6">
             <QuickStartGuide />
             <ApiKeysDisplay />
           </div>
         </TabsContent>
-        <TabsContent value="providers" className="mt-3">
+        <TabsContent value="providers" className="mt-3 flex-none">
           <div className="grid">
             <ProviderConnections />
           </div>
         </TabsContent>
-        <TabsContent value="webhooks" className="mt-3">
-          <div className="grid gap-6 lg:grid-cols-3">
+        <TabsContent value="webhooks" className="mt-3 flex-none">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 items-start gap-6">
             <WebhooksManager />
           </div>
         </TabsContent>
-        <TabsContent value="logs" className="mt-3">
+        <TabsContent value="logs" className="mt-3 flex-none">
           <div className="grid">
             <LogsViewer initialLogs={logsProp} initialTotal={totalLogs} />
           </div>
         </TabsContent>
-        <TabsContent value="settings" className="mt-3">
-          <div className="grid gap-6 lg:grid-cols-3">
+        <TabsContent value="settings" className="mt-3 flex-none">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 items-start gap-6">
             <ProjectDetails />
             <DangerZone />
           </div>

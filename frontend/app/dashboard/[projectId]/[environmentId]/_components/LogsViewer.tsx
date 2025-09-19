@@ -106,8 +106,8 @@ export default function LogsViewer({
   }
 
   return (
-    <div className="w-full rounded-md border">
-      <table className="w-full text-sm table-fixed">
+    <div className="w-full rounded-md border overflow-x-auto">
+      <table className="min-w-max w-full text-sm table-auto">
         <thead className="bg-muted/50 text-left">
           <tr className="border-b">
             <th className="px-3 py-2 font-medium w-40">Time</th>
@@ -168,7 +168,7 @@ export default function LogsViewer({
                 </td>
 
                 {/* Query cell */}
-                <td className="px-3 py-2 align-top">
+                <td className="px-3 py-2 align-top max-w-[28rem]">
                   <div>
                     <pre
                       className={`whitespace-pre-wrap break-all text-xs rounded p-1 ${
@@ -195,7 +195,7 @@ export default function LogsViewer({
                 </td>
 
                 {/* Body cell */}
-                <td className="px-3 py-2 align-top">
+                <td className="px-3 py-2 align-top max-w-[28rem]">
                   <div>
                     <pre
                       className={`whitespace-pre-wrap break-all text-xs rounded p-1 ${
