@@ -372,7 +372,7 @@ fastify.post('/sync-stripe', async (request, response) => {
     return response.status(401).send('Admin key invalid!');
   }
   console.log(`Request body: ${request.body}`);
-  const { customerId } = request.body as {
+  const { customerId } = JSON.parse(request.body as string) as {
     customerId: string;
   };
   console.log(`Customer Id: ${customerId}`);
