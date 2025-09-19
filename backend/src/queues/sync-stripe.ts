@@ -113,8 +113,6 @@ export async function SyncStripe(
     .where(eq(subscriptions.customerId, customerId))
     .then((val) => val.at(0) ?? null);
   const jobKey = `stripe-sync:${customerId}`;
-  console.log(`Subscription: ${JSON.stringify(subscription)}`);
-  console.log(`Job Key: ${jobKey}`);
   if (!subscription || subscription.subscriptions.status == 'cancelled') {
     try {
       // Ensure no job exists to update usage 5 minutes before the renewal

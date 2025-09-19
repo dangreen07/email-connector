@@ -371,14 +371,18 @@ fastify.post('/sync-stripe', async (request, response) => {
   if (adminKey != ADMIN_KEY) {
     return response.status(401).send('Admin key invalid!');
   }
-  console.log(`Request body: ${request.body}`);
   const { customerId } = JSON.parse(request.body as string) as {
     customerId: string;
   };
-  console.log(`Customer Id: ${customerId}`);
-  await queue.add('sync-stripe', {
-    customerId: customerId,
-  });
+  await queue.add(
+    'sync-stripe',
+    {
+      customerId: customerId,
+    },
+    {
+      removeOnComplete: true,
+    },
+  );
 
   return response.status(200).send();
 });
