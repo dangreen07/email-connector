@@ -15,6 +15,7 @@ import {
   getOutlookMessageById,
   sendOutlookEmail,
   handleOutlookWebhookProd,
+  handleOutlookWebhook,
 } from '../azure/outlook-connection';
 import {
   getGmailMessages,
@@ -706,4 +707,5 @@ export default async function v1Routes(fastify: FastifyInstance) {
   fastify.post('/webhook/gmail/:environmentId', handleGmailWebhookProd);
   fastify.post('/webhook/outlook/:environmentId', handleOutlookWebhookProd);
   // Development
+  fastify.post('/webhook/outlook', handleOutlookWebhook);
 }

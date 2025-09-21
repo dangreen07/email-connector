@@ -25,7 +25,10 @@ export const azureSubRefresh = async (job: Job<any, any, string>) => {
   // Needs to be refreshed every hour to keep alive!
   await graphClient.api('/subscriptions').post({
     changeType: 'created',
-    notificationUrl: `${notificationUri}/webhook/outlook/${data.environmentId}`, // must be HTTPS & publicly reachable
+    notificationUrl:
+      data.environmentName == 'development'
+        ? `${notificationUri}/webhook/outlook`
+        : `${notificationUri}/webhook/outlook/${data.environmentId}`, // must be HTTPS & publicly reachable
     resource: "me/mailFolders('inbox')/messages",
     expirationDateTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // max 1 hour for mail
     clientState: process.env.AZURE_WEBHOOK_STATE!,

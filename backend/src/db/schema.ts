@@ -105,6 +105,7 @@ export const connectionCredentials = pgTable('connection_credentials', {
   refreshJobId: text('refresh_job_id'),
   lastRefresh: timestamp('last_refresh'),
   webhookStarted: boolean('webhook_started').notNull().default(false),
+  subscriptionId: text('notifications_subscription_id'),
 });
 
 export const webhooks = pgTable('webhook', {
