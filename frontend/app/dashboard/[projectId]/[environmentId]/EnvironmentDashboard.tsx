@@ -56,7 +56,6 @@ export default function EnvironmentDashboard(props: {
     setCurrentTab,
     currentTab,
     changed,
-    webhooks,
     projectName,
     outlookEnabled,
     gmailEnabled,
@@ -267,7 +266,6 @@ export default function EnvironmentDashboard(props: {
                   outlookEnabled,
                   gmailEnabled,
                   imapEnabled,
-                  webhooks,
                   outlookCredentials,
                   gmailCredentials
                 );

@@ -395,7 +395,7 @@ export async function handleGmailCallback(
       }
 
       await redis.set(
-        `gmail-history-id:${stateToken.environmentId}:${stateToken.identifier}`,
+        `gmail-history-id:development:${stateToken.identifier}`,
         historyId,
       );
 
@@ -826,7 +826,7 @@ export async function sendGmailEmail(
   return id;
 }
 
-export async function handleGmailWebhook(
+export async function handleGmailWebhookProd(
   request: FastifyRequest,
   response: FastifyReply,
 ) {
@@ -935,6 +935,109 @@ export async function handleGmailWebhook(
       queue.add(
         'webhook-notify',
         { environmentId, message: email },
+        {
+          removeOnComplete: true,
+        },
+      ),
+    ),
+  );
+
+  return response.status(200).send();
+}
+
+export async function handleGmailWebhook(
+  request: FastifyRequest,
+  response: FastifyReply,
+) {
+  const body = request.body as {
+    message: {
+      data: string;
+      messageId: string;
+      message_id: string;
+      publishTime: string;
+      publish_time: string;
+    };
+    subscription: string;
+  };
+  const data = JSON.parse(atob(body.message.data)) as {
+    emailAddress: string;
+    historyId: number;
+  };
+  const connection = await db
+    .select({
+      connectionCredentials,
+      identifier: connections.identifier,
+      environmentId: connections.environmentId,
+    })
+    .from(connectionCredentials)
+    .innerJoin(
+      connections,
+      eq(connections.connectionCredentials, connectionCredentials.id),
+    )
+    .innerJoin(environments, eq(environments.id, connections.environmentId))
+    .where(
+      and(
+        eq(connectionCredentials.email, data.emailAddress),
+        eq(environments.name, 'development'),
+      ),
+    )
+    .then((val) => val.at(0) ?? null);
+  if (!connection) {
+    // How did we end up here? They must've deleted the record
+    return response.status(200).send();
+  }
+  // Doesn't really matter which environmentId it is.
+  const client = await getGoogleClient('development', connection.environmentId);
+  client.setCredentials({
+    access_token: connection.connectionCredentials.accessToken,
+    refresh_token: connection.connectionCredentials.refreshToken,
+    expiry_date: connection.connectionCredentials.expiresAt?.getTime(),
+  });
+
+  const gmail = google.gmail({ version: 'v1', auth: client });
+  const oldHistoryId = await redis.get(
+    `gmail-history-id:development:${connection.identifier}`,
+  );
+  if (!oldHistoryId) {
+    return;
+  }
+  await redis.set(
+    `gmail-history-id:development:${connection.identifier}`,
+    data.historyId,
+  );
+  const history = await gmail.users.history
+    .list({
+      userId: 'me',
+      startHistoryId: oldHistoryId,
+    })
+    .then((val) => val.data.history);
+  if (history === undefined) {
+    return;
+  }
+
+  const addedMessages = history
+    .filter((val) => val.messagesAdded)
+    .map((val) => {
+      return val.messagesAdded?.map((added) => {
+        const message = added.message;
+        if (message) {
+          const email = gmailToGeneric(
+            message,
+            connection.identifier,
+            connection.environmentId,
+          );
+          return email;
+        }
+      });
+    })
+    .flat()
+    .filter((val) => val !== undefined);
+
+  await Promise.all(
+    addedMessages.map((email) =>
+      queue.add(
+        'webhook-notify',
+        { environmentId: connection.environmentId, message: email },
         {
           removeOnComplete: true,
         },

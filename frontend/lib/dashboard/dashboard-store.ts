@@ -217,6 +217,6 @@ export const createDashboardStore = (
       set({ outlookClientSecret: clientSecret, changed: true }),
     setGmailTopicName: (topicName) =>
       set({ gmailTopicName: topicName, changed: true }),
-    setWebhooks: (webhooks) => set({ webhooks, changed: true }),
+    setWebhooks: (webhooks) => set({ webhooks }),
   }));
 };

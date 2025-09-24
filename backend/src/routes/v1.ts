@@ -23,7 +23,8 @@ import {
   handleGmailCallback,
   getGmailMessageById,
   sendGmailEmail,
-  handleGmailWebhook as handleGmailWebhookProd,
+  handleGmailWebhookProd,
+  handleGmailWebhook,
 } from '../google/gmail-connection';
 import { decrypt } from '../encryption';
 import {
@@ -708,4 +709,5 @@ export default async function v1Routes(fastify: FastifyInstance) {
   fastify.post('/webhook/outlook/:environmentId', handleOutlookWebhookProd);
   // Development
   fastify.post('/webhook/outlook', handleOutlookWebhook);
+  fastify.post('/webhook/gmail', handleGmailWebhook);
 }

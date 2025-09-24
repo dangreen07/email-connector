@@ -59,6 +59,7 @@ export const googleWatchRefresh = async (job: Job<any, any, string>) => {
   });
 
   let topicName = process.env.GOOGLE_TOPIC_NAME!;
+  let historyKey = `gmail-history-id:development:${data.identifier}`;
   if (data.environmentName == 'production') {
     const provider = await db
       .select()
@@ -82,6 +83,7 @@ export const googleWatchRefresh = async (job: Job<any, any, string>) => {
     ) as GmailCredentials;
 
     topicName = credentials.topicName;
+    historyKey = `gmail-history-id:${data.environmentId}:${data.identifier}`;
   }
 
   const gmail = google.gmail({ version: 'v1', auth: client });
@@ -103,10 +105,7 @@ export const googleWatchRefresh = async (job: Job<any, any, string>) => {
     return;
   }
 
-  await redis.set(
-    `gmail-history-id:${data.environmentId}:${data.identifier}`,
-    historyId,
-  );
+  await redis.set(historyKey, historyId);
 
   const newJob = await queue.add(
     'google-watch-refresh',

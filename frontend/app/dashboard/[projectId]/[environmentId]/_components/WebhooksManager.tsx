@@ -35,10 +35,16 @@ import {
 import { toast } from "sonner";
 import { Webhook } from "@/utils/db/schema";
 import { useDashboardStore } from "@/lib/dashboard/dashboard-store-provider";
+import {
+  CreateWebhook,
+  DeleteWebhook,
+  UpdateWebhook,
+} from "@/app/dashboard/_actions";
 
 export default function WebhooksManager() {
-  const { environmentId, environmentName, webhooks, setWebhooks } =
-    useDashboardStore((state) => state);
+  const { environmentId, webhooks, setWebhooks } = useDashboardStore(
+    (state) => state
+  );
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Webhook | null>(null);
@@ -48,17 +54,14 @@ export default function WebhooksManager() {
   const [testingId, setTestingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Webhook | null>(null);
 
-  const isDevelopment = environmentName?.toLowerCase() === "development";
-
   const headerSubtitle = useMemo(() => {
-    if (isDevelopment) return "Webhooks are disabled in development.";
     if (webhooks.length === 0)
       return "No webhooks yet. Create one to receive events from this environment.";
     const activeCount = webhooks.filter((w) => w.active).length;
     return `${webhooks.length} webhook${
       webhooks.length === 1 ? "" : "s"
     } • ${activeCount} active`;
-  }, [webhooks, isDevelopment]);
+  }, [webhooks]);
 
   function openNew() {
     setEditing(null);
@@ -88,29 +91,31 @@ export default function WebhooksManager() {
     return null;
   }
 
-  function save() {
+  async function save() {
     const error = validate();
     if (error) {
       toast.error(error);
       return;
     }
     if (editing) {
+      await UpdateWebhook(editing);
       setWebhooks(
         [...webhooks].map((w) =>
           w.id === editing.id ? { ...w, name, url, active } : w
         )
       );
-      toast.success("Webhook updated. Make sure to Save Changes!");
+      toast.success("Webhook updated.");
     } else {
-      const newW = {
-        id: self.crypto.randomUUID(),
+      const newW = await CreateWebhook({
         name,
         environmentId,
         endpointUrl: url,
-        active: active,
-      };
-      setWebhooks([newW, ...webhooks]);
-      toast.success("Webhook created. Make sure to Save Changes!");
+        active,
+      });
+      if (newW) {
+        setWebhooks([newW, ...webhooks]);
+        toast.success("Webhook created.");
+      }
     }
     setDialogOpen(false);
   }
@@ -141,9 +146,10 @@ export default function WebhooksManager() {
     if (!deleteTarget) return;
     const name = deleteTarget.name;
     const newList = [...webhooks].filter((x) => x.id !== deleteTarget.id);
+    await DeleteWebhook(deleteTarget.id, deleteTarget.environmentId);
     setWebhooks(newList);
     setDeleteTarget(null);
-    toast.success(`Deleted webhook "${name}". Make sure to Save Changes!`);
+    toast.success(`Deleted webhook "${name}". `);
   }
 
   return (
@@ -154,81 +160,68 @@ export default function WebhooksManager() {
             <CardTitle>Webhooks</CardTitle>
             <CardDescription>{headerSubtitle}</CardDescription>
           </div>
-          {!isDevelopment && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={openNew}>New Webhook</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>
-                    {editing ? "Edit webhook" : "Create webhook"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Configure the endpoint that will receive event POST
-                    requests.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="wh-name">Name</Label>
-                    <Input
-                      id="wh-name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Zapier ingest"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="wh-url">Endpoint URL</Label>
-                    <Input
-                      id="wh-url"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="https://example.com/webhooks/email"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <Label htmlFor="wh-active" className="cursor-pointer">
-                        Active
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Inactive webhooks will not receive events.
-                      </p>
-                    </div>
-                    <Switch
-                      id="wh-active"
-                      checked={active}
-                      onCheckedChange={setActive}
-                    />
-                  </div>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={openNew}>New Webhook</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {editing ? "Edit webhook" : "Create webhook"}
+                </DialogTitle>
+                <DialogDescription>
+                  Configure the endpoint that will receive event POST requests.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label htmlFor="wh-name">Name</Label>
+                  <Input
+                    id="wh-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Zapier ingest"
+                  />
                 </div>
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={save}>
-                    {editing ? "Save changes" : "Create webhook"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
+                <div className="space-y-2">
+                  <Label htmlFor="wh-url">Endpoint URL</Label>
+                  <Input
+                    id="wh-url"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://example.com/webhooks/email"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="wh-active" className="cursor-pointer">
+                      Active
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Inactive webhooks will not receive events.
+                    </p>
+                  </div>
+                  <Switch
+                    id="wh-active"
+                    checked={active}
+                    onCheckedChange={setActive}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={save}>
+                  {editing ? "Save changes" : "Create webhook"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
       </Card>
 
-      {isDevelopment ? (
-        <Card>
-          <CardContent className="py-10">
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Webhooks are disabled in the development environment.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : webhooks.length === 0 ? (
+      {webhooks.length === 0 ? (
         <Card>
           <CardContent className="py-10">
             <div className="text-center space-y-2">
