@@ -38,12 +38,13 @@ export default function ProviderConnections() {
   } = useDashboardStore((state) => state);
 
   const gmailPushEndpoint = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/v1/webhook/gmail/${environmentId}`;
+  const gmailAuthorizedRedirectURI = `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/v1/callback/gmail`;
 
   const handleCopy = async (value: string, message: string) => {
     try {
       await navigator.clipboard.writeText(value);
       toast(message);
-    } catch {}
+    } catch { }
   };
 
   return (
@@ -120,6 +121,29 @@ export default function ProviderConnections() {
 
           {environmentName === "production" && gmailEnabled ? (
             <div className="mt-4 space-y-4">
+              <div className="grid gap-2">
+                <Label>Authorized Redirect URI</Label>
+                <div className="flex min-w-0 w-full gap-2 items-center">
+                  <p
+                    id="gmail-authorized-redirect-uri"
+                    className="flex-1 truncate text-sm px-4 py-2 h-10 border-input bg-transparent dark:bg-input/30 border drop-shadow-lg rounded-md shadow-xs"
+                  >
+                    {gmailAuthorizedRedirectURI}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() =>
+                      handleCopy(
+                        gmailAuthorizedRedirectURI,
+                        "Copied gmail authorized redirect URI to clipboard!"
+                      )
+                    }
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
               <div className="grid gap-2">
                 <Label>Push Endpoint</Label>
                 <div className="flex min-w-0 w-full gap-2 items-center">
