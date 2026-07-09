@@ -47,7 +47,7 @@ paths:
           schema:
             type: string
             format: uri
-          description: URL to redirect to after OAuth completes (URL-encoded in the request).
+          description: URL to redirect to after OAuth completes (URL-encoded in the request). On completion, the `identifier` you provided will be appended as a query parameter (e.g. `?identifier=user-123`).
       requestBody:
         required: false
         description: Required only when providerCode is "smtp-imap" — provide SMTP/IMAP credentials.

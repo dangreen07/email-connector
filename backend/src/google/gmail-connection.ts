@@ -287,7 +287,9 @@ export async function handleGmailCallback(
   // If credentials already existed, skip creating a new watch and scheduling a refresh.
   // This prevents duplicate watch subscriptions for the same Gmail account.
   if (credentialsExisted) {
-    return response.redirect(stateToken.redirectAfterAuth);
+    return response.redirect(
+      `${stateToken.redirectAfterAuth}${stateToken.redirectAfterAuth.includes('?') ? '&' : '?'}identifier=${encodeURIComponent(stateToken.identifier)}`,
+    );
   }
 
   if (environment.name == 'production') {
@@ -426,7 +428,9 @@ export async function handleGmailCallback(
     }
   }
 
-  return response.redirect(stateToken.redirectAfterAuth);
+  return response.redirect(
+    `${stateToken.redirectAfterAuth}${stateToken.redirectAfterAuth.includes('?') ? '&' : '?'}identifier=${encodeURIComponent(stateToken.identifier)}`,
+  );
 }
 
 export async function getGmailMessages(
