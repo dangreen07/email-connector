@@ -198,16 +198,18 @@ export async function handleGmailCallback(
   // Track whether credentials already existed to prevent duplicate Gmail watch subscriptions
   let credentialsExisted = false;
 
-  const credentialsId = await db.transaction(async (tx) => {
+  const { credentialsId, connectionId } = await db.transaction(async (tx) => {
     // Check if any connections already connect to these credentials
     let result: {
       id: string;
+      connectionId: string;
     } | null = null;
     if (environment.name == 'production') {
       // In production, only check if credentials exist for this email and provider code for this environment id
       result = await tx
         .select({
           id: connectionCredentials.id,
+          connectionId: connections.id,
         })
         .from(connectionCredentials)
         .innerJoin(
@@ -226,6 +228,7 @@ export async function handleGmailCallback(
       result = await tx
         .select({
           id: connectionCredentials.id,
+          connectionId: connections.id,
         })
         .from(connectionCredentials)
         .innerJoin(
@@ -256,10 +259,10 @@ export async function handleGmailCallback(
           updatedAt: new Date(),
         })
         .where(eq(connectionCredentials.id, result.id));
-      return result.id;
+      return { credentialsId: result.id, connectionId: result.connectionId };
     } else {
       // Insert new credentials and a new connection
-      const result = await tx
+      const credResult = await tx
         .insert(connectionCredentials)
         .values({
           providerCode: 'gmail',
@@ -270,15 +273,22 @@ export async function handleGmailCallback(
         })
         .returning({ id: connectionCredentials.id })
         .then((val) => val.at(0) ?? null);
-      if (!result) {
+      if (!credResult) {
         throw Error('Failed to insert connection credentials!');
       }
-      await tx.insert(connections).values({
-        environmentId: environment.id,
-        identifier: stateToken.identifier,
-        connectionCredentials: result.id,
-      });
-      return result.id;
+      const connResult = await tx
+        .insert(connections)
+        .values({
+          environmentId: environment.id,
+          identifier: stateToken.identifier,
+          connectionCredentials: credResult.id,
+        })
+        .returning({ id: connections.id })
+        .then((val) => val.at(0) ?? null);
+      if (!connResult) {
+        throw Error('Failed to insert connection!');
+      }
+      return { credentialsId: credResult.id, connectionId: connResult.id };
     }
   });
 
@@ -288,7 +298,7 @@ export async function handleGmailCallback(
   // This prevents duplicate watch subscriptions for the same Gmail account.
   if (credentialsExisted) {
     return response.redirect(
-      `${stateToken.redirectAfterAuth}${stateToken.redirectAfterAuth.includes('?') ? '&' : '?'}identifier=${encodeURIComponent(stateToken.identifier)}&providerCode=gmail&connectionId=${encodeURIComponent(credentialsId)}`,
+      `${stateToken.redirectAfterAuth}${stateToken.redirectAfterAuth.includes('?') ? '&' : '?'}identifier=${encodeURIComponent(stateToken.identifier)}&providerCode=gmail&connectionId=${encodeURIComponent(connectionId)}`,
     );
   }
 
@@ -429,7 +439,7 @@ export async function handleGmailCallback(
   }
 
   return response.redirect(
-    `${stateToken.redirectAfterAuth}${stateToken.redirectAfterAuth.includes('?') ? '&' : '?'}identifier=${encodeURIComponent(stateToken.identifier)}&providerCode=gmail&connectionId=${encodeURIComponent(credentialsId)}`,
+    `${stateToken.redirectAfterAuth}${stateToken.redirectAfterAuth.includes('?') ? '&' : '?'}identifier=${encodeURIComponent(stateToken.identifier)}&providerCode=gmail&connectionId=${encodeURIComponent(connectionId)}`,
   );
 }
 
