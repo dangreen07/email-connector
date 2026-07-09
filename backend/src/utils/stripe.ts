@@ -4,7 +4,7 @@ import db from '../db';
 import { eq } from 'drizzle-orm';
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-08-27.basil',
+  apiVersion: '2026-06-24.preview',
 });
 
 export async function syncWithStripe(customerId: string) {
