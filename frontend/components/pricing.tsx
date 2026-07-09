@@ -17,7 +17,7 @@ const tiersRow1: Tier[] = [
       "$0.25 per extra inbox",
       "$0.40 per 100k extra API calls",
     ],
-    cta: "Choose Pro",
+    cta: "Choose Basic",
     href: "/sign-up",
   },
   {
