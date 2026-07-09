@@ -57,13 +57,13 @@ The OAuth response will contain an \`authUrl\` you should redirect the user to:
 { "authUrl": "https://accounts.google.com/o/oauth2/..." }
 \`\`\`
 
-After the user authorizes, they will be redirected back to your \`redirectAfterAuth\` URL with the \`identifier\` appended as a query parameter:
+After the user authorizes, they will be redirected back to your \`redirectAfterAuth\` URL with \`identifier\`, \`providerCode\`, and \`connectionId\` appended as query parameters:
 
 \`\`\`
-https://yourapp.com/oauth-callback?identifier=user-123
+https://yourapp.com/oauth-callback?identifier=user-123&providerCode=gmail&connectionId=abc-123
 \`\`\`
 
-Use this to know which user completed the connection.
+Use these to know which user and provider completed the connection, and to reference it in future API calls.
 
 SMTP/IMAP example (curl provide credentials in body):
 

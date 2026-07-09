@@ -288,7 +288,7 @@ export async function handleGmailCallback(
   // This prevents duplicate watch subscriptions for the same Gmail account.
   if (credentialsExisted) {
     return response.redirect(
-      `${stateToken.redirectAfterAuth}${stateToken.redirectAfterAuth.includes('?') ? '&' : '?'}identifier=${encodeURIComponent(stateToken.identifier)}`,
+      `${stateToken.redirectAfterAuth}${stateToken.redirectAfterAuth.includes('?') ? '&' : '?'}identifier=${encodeURIComponent(stateToken.identifier)}&providerCode=gmail&connectionId=${encodeURIComponent(credentialsId)}`,
     );
   }
 
@@ -429,7 +429,7 @@ export async function handleGmailCallback(
   }
 
   return response.redirect(
-    `${stateToken.redirectAfterAuth}${stateToken.redirectAfterAuth.includes('?') ? '&' : '?'}identifier=${encodeURIComponent(stateToken.identifier)}`,
+    `${stateToken.redirectAfterAuth}${stateToken.redirectAfterAuth.includes('?') ? '&' : '?'}identifier=${encodeURIComponent(stateToken.identifier)}&providerCode=gmail&connectionId=${encodeURIComponent(credentialsId)}`,
   );
 }
 
