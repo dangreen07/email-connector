@@ -23,7 +23,7 @@ export type DashboardState = {
   webhooks: Webhook[];
 
   imapEnabled: boolean;
-  currentTab: "overview" | "providers" | "webhooks" | "settings" | "logs";
+  currentTab: "overview" | "providers" | "webhooks" | "settings" | "logs" | "connected-accounts";
 
   changed: boolean;
 };
@@ -62,7 +62,7 @@ export type DashboardActions = {
   setGmailEnabled: (gmailEnabled: boolean) => void;
   setImapEnabled: (imapEnabled: boolean) => void;
   setCurrentTab: (
-    currentTab: "overview" | "providers" | "webhooks" | "settings" | "logs"
+    currentTab: "overview" | "providers" | "webhooks" | "settings" | "logs" | "connected-accounts"
   ) => void;
   setChanged: (changed: boolean) => void;
 

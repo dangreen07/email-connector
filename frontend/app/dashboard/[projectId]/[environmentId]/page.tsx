@@ -1,6 +1,8 @@
 import db from "@/utils/db";
 import {
   connectedProviders,
+  connections,
+  connectionCredentials,
   environments,
   projects,
   webhooks,
@@ -43,7 +45,7 @@ export default async function EnvironmentPage({
   if (!project) {
     return redirect("/dashboard");
   }
-  const [providers, webhookList, logsList, logCount] = await Promise.all([
+  const [providers, webhookList, logsList, logCount, connectionList] = await Promise.all([
     db
       .select()
       .from(connectedProviders)
@@ -90,6 +92,20 @@ export default async function EnvironmentPage({
       .from(logs)
       .where(eq(logs.environmentId, environmentId))
       .then((item) => item.at(0)?.count ?? 0),
+    db
+      .select({
+        id: connections.id,
+        identifier: connections.identifier,
+        providerCode: connectionCredentials.providerCode,
+        email: connectionCredentials.email,
+        updatedAt: connectionCredentials.updatedAt,
+      })
+      .from(connections)
+      .innerJoin(
+        connectionCredentials,
+        eq(connections.connectionCredentials, connectionCredentials.id),
+      )
+      .where(eq(connections.environmentId, environmentId)),
   ]);
 
   return (
@@ -104,6 +120,7 @@ export default async function EnvironmentPage({
       webhooks={webhookList}
       logs={logsList}
       totalLogs={logCount}
+      connections={connectionList}
     />
   );
 }

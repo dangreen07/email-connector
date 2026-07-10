@@ -5,3 +5,4 @@ export { default as DangerZone } from "./DangerZone";
 export { default as ProviderConnections } from "./ProviderConnections";
 export { default as WebhooksManager } from "./WebhooksManager";
 export { default as LogsViewer } from "./LogsViewer";
+export { default as ConnectedAccounts } from "./ConnectedAccounts";

@@ -19,10 +19,12 @@ import {
   ProviderConnections,
   WebhooksManager,
   LogsViewer,
+  ConnectedAccounts,
 } from "./_components";
 import { Button } from "@/components/ui/button";
 import { UpdateEnvironmentSettings } from "../../_actions";
 import { DashboardProvider } from "@/utils/types";
+import type { ConnectionInfo } from "@/app/dashboard/_actions";
 import { Webhook, Log } from "@/utils/db/schema";
 import { useAuth } from "@clerk/nextjs";
 
@@ -37,6 +39,7 @@ export default function EnvironmentDashboard(props: {
   webhooks: Webhook[];
   logs: Log[];
   totalLogs: number;
+  connections: ConnectionInfo[];
 }) {
   const {
     projectName: projectNameProp,
@@ -49,6 +52,7 @@ export default function EnvironmentDashboard(props: {
     webhooks: initialWebhooks,
     logs: logsProp,
     totalLogs,
+    connections: initialConnections,
   } = props;
 
   const {
@@ -210,6 +214,7 @@ export default function EnvironmentDashboard(props: {
               <TabsTrigger value="providers">Providers</TabsTrigger>
               <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
               <TabsTrigger value="logs">Logs</TabsTrigger>
+              <TabsTrigger value="connected-accounts">Connected Accounts</TabsTrigger>
               <TabsTrigger value="settings">Project Settings</TabsTrigger>
             </TabsList>
           </div>
@@ -228,6 +233,7 @@ export default function EnvironmentDashboard(props: {
                 <SelectItem value="providers">Providers</SelectItem>
                 <SelectItem value="webhooks">Webhooks</SelectItem>
                 <SelectItem value="logs">Logs</SelectItem>
+                <SelectItem value="connected-accounts">Connected Accounts</SelectItem>
                 <SelectItem value="settings">Project Settings</SelectItem>
               </SelectContent>
             </Select>
@@ -297,6 +303,11 @@ export default function EnvironmentDashboard(props: {
         <TabsContent value="logs" className="mt-3 flex-none">
           <div className="grid">
             <LogsViewer initialLogs={logsProp} initialTotal={totalLogs} />
+          </div>
+        </TabsContent>
+        <TabsContent value="connected-accounts" className="mt-3 flex-none">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 items-start gap-6">
+            <ConnectedAccounts initialConnections={initialConnections} />
           </div>
         </TabsContent>
         <TabsContent value="settings" className="mt-3 flex-none">

@@ -3,6 +3,8 @@
 import db from "@/utils/db";
 import {
   connectedProviders,
+  connections,
+  connectionCredentials,
   environments,
   InsertWebhook,
   Log,
@@ -548,4 +550,75 @@ export async function getLogsPage(
   const total = Number(totalResult?.[0]?.count ?? 0);
 
   return { logs: rows as unknown as Log[], total };
+}
+
+export type ConnectionInfo = {
+  id: string;
+  identifier: string;
+  providerCode: string;
+  email: string;
+  updatedAt: Date;
+};
+
+export async function getConnections(
+  environmentId: string
+): Promise<ConnectionInfo[]> {
+  const { userId } = await auth();
+  if (!userId || !environmentId) return [];
+
+  return await db
+    .select({
+      id: connections.id,
+      identifier: connections.identifier,
+      providerCode: connectionCredentials.providerCode,
+      email: connectionCredentials.email,
+      updatedAt: connectionCredentials.updatedAt,
+    })
+    .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connections.connectionCredentials, connectionCredentials.id),
+    )
+    .innerJoin(environments, eq(environments.id, connections.environmentId))
+    .innerJoin(projects, eq(projects.id, environments.projectId))
+    .where(
+      and(
+        eq(connections.environmentId, environmentId),
+        eq(projects.userId, userId)
+      )
+    );
+}
+
+export async function deleteConnection(connectionId: string) {
+  const { userId } = await auth();
+  if (!userId) return { error: "Unauthorized" } as const;
+
+  const result = await db
+    .select({
+      credentialsId: connectionCredentials.id,
+    })
+    .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
+    .innerJoin(environments, eq(environments.id, connections.environmentId))
+    .innerJoin(projects, eq(projects.id, environments.projectId))
+    .where(
+      and(eq(connections.id, connectionId), eq(projects.userId, userId))
+    )
+    .then((val) => val.at(0) ?? null);
+
+  if (!result) {
+    return { error: "Connection not found" } as const;
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(connections).where(eq(connections.id, connectionId));
+    await tx
+      .delete(connectionCredentials)
+      .where(eq(connectionCredentials.id, result.credentialsId));
+  });
+
+  return { ok: true } as const;
 }
