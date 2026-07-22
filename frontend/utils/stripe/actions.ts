@@ -7,7 +7,7 @@ import { stripe } from ".";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect, RedirectType } from "next/navigation";
 
-export async function createCheckoutLink(plan: "Basic" | "Growth" | "Scale") {
+export async function createCheckoutLink(plan: "Free" | "Basic" | "Growth" | "Scale") {
   const user = await currentUser();
   if (!user) return;
 
@@ -73,6 +73,10 @@ export async function createCheckoutLink(plan: "Basic" | "Growth" | "Scale") {
     .then((val) => val.at(0) ?? null);
 
   if (!subscription || subscription.status == "cancelled") {
+    if (plan === "Free") {
+      // If the user is on free, we don't need to do anything
+      return redirect("/success", RedirectType.push);
+    }
     // Create new subscription via Checkout
     const result = await stripe.checkout.sessions.create({
       customer: userRecord.stripeCustomerId,
@@ -92,6 +96,14 @@ export async function createCheckoutLink(plan: "Basic" | "Growth" | "Scale") {
     const existingSub = await stripe.subscriptions.retrieve(subscription.id, {
       expand: ["items"],
     });
+
+    if (plan === "Free") {
+      // Cancel the subscription
+      await stripe.subscriptions.update(subscription.id, {
+        cancel_at_period_end: true,
+      });
+      return redirect("/success", RedirectType.push);
+    }
 
     // Delete previous line items + add new ones
     await stripe.subscriptions.update(subscription.id, {

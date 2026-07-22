@@ -36,7 +36,7 @@ export const metadata: Metadata = {
 
 export default async function Home() {
   const { userId, isAuthenticated } = await auth();
-  let plan: "Basic" | "Growth" | "Scale" | null = null;
+  let plan: "Free" | "Basic" | "Growth" | "Scale" = "Free";
   if (userId) {
     const currentSubscription = await db
       .select({

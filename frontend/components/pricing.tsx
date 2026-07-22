@@ -6,6 +6,21 @@ import { TierCard } from "./TierCard";
 
 const tiersRow1: Tier[] = [
   {
+    name: "Free" as const,
+    price: "$0",
+    period: "",
+    description: "For development & testing.",
+    features: [
+      "Unlimited projects",
+      "1 inbox included",
+      "50k API calls included",
+      "100 MB egress included",
+      "No credit card required",
+    ],
+    cta: "Start for Free",
+    href: "/sign-up",
+  },
+  {
     name: "Basic" as const,
     price: "$19",
     period: "/mo",
@@ -56,7 +71,7 @@ export default function Pricing({
   plan,
   isAuthenticated,
 }: {
-  plan: "Basic" | "Growth" | "Scale" | null;
+  plan: "Free" | "Basic" | "Growth" | "Scale";
   isAuthenticated: boolean;
 }) {
   return (
@@ -73,7 +88,7 @@ export default function Pricing({
         </div>
 
         {/* Row 1: 3 cards */}
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 items-stretch justify-items-center">
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4 items-stretch justify-items-center">
           {tiersRow1.map((tier) => (
             <TierCard
               key={tier.name}

@@ -9,13 +9,12 @@ export const TierCard = ({
   isAuthenticated,
 }: {
   tier: Tier;
-  plan: "Basic" | "Growth" | "Scale" | null;
+  plan: "Free" | "Basic" | "Growth" | "Scale";
   isAuthenticated: boolean;
 }) => {
-  const tiers = ["Basic", "Growth", "Scale"] as const;
+  const tiers = ["Free", "Basic", "Growth", "Scale"] as const;
 
   const getActionLabel = () => {
-    if (!plan) return tier.cta;
     const currentIndex = tiers.indexOf(plan);
     const targetIndex = tiers.indexOf(tier.name as (typeof tiers)[number]);
 

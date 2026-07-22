@@ -28,7 +28,7 @@ export type DashboardProvider =
     };
 
 export type Tier = {
-  name: "Basic" | "Growth" | "Scale";
+  name: "Free" | "Basic" | "Growth" | "Scale";
   price: string;
   period: string;
   description: string;
