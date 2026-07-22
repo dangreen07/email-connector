@@ -5,7 +5,8 @@ export default async function Terms() {
   const input = `
 ## **MailLink Terms of Service**
 
-**Effective Date:** August 15, 2025  
+**Effective Date:** July 23, 2026  
+**Last Updated:** July 23, 2026  
 
 Welcome to MailLink (“we,” “our,” or “us”). These Terms of Service (“Terms”) govern your access to and use of our website, products, and services (collectively, the “Services”). By using MailLink, you agree to these Terms. If you do not agree, do not use our Services.
 
@@ -22,7 +23,7 @@ By using MailLink, you confirm that you meet these requirements.
 - You must create an account to use certain features.  
 - Account creation and authentication are handled by **Clerk**.  
 - You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account.  
-- Notify us immediately at **daniel@maillink.co** if you suspect unauthorised use.
+- Notify us immediately at **${process.env.CONTACT_EMAIL}** if you suspect unauthorised use.
 
 ---
 
@@ -44,7 +45,7 @@ You agree not to:
 ---
 
 ### 5. Data & Privacy
-- Your data is stored on **Vercel** (hosting), **Neon** (database), and processed by **Clerk** (authentication) and **Stripe** (payments).  
+- Your data is stored on **Vercel** (hosting), **Railway** (database and hosting), and processed by **Clerk** (authentication) and **Stripe** (payments).  
 - Our use of your data is governed by our [Privacy Policy](/privacy).  
 - By using our Services, you consent to the collection and use of your data as described in the Privacy Policy, in compliance with the **UK GDPR** and **Data Protection Act 2018**.
 
@@ -88,7 +89,7 @@ These Terms are governed by the laws of **England and Wales**, without regard to
 
 ### 13. Contact Us
 If you have questions about these Terms, contact us at:  
-**Email:** daniel@maillink.co
+**Email:** ${process.env.CONTACT_EMAIL}
 `.trim();
 
   return (

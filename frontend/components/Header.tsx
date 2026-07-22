@@ -52,7 +52,7 @@ export default function Header() {
               Docs
             </Link>
             <Link
-              href="/pricing"
+              href="/#pricing"
               className="text-foreground/80 hover:text-foreground transition-colors"
             >
               Pricing

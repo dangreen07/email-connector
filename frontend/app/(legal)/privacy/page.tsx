@@ -5,7 +5,8 @@ export default async function Privacy() {
   const input = `
 ## **MailLink Privacy Policy**
 
-**Effective Date:** August 15, 2025  
+**Effective Date:** July 23, 2026  
+**Last Updated:** July 23, 2026  
 
 MailLink (“we,” “our,” or “us”) values your privacy. This Privacy Policy explains how we collect, use, and protect your information when you use our website and services.
 
@@ -45,7 +46,7 @@ We do not sell your personal information. We share data only with:
 - **Stripe** (payment processing)  
 - **Clerk** (authentication)  
 - **Vercel** (hosting and analytics)  
-- **Neon** (database hosting and storage)  
+- **Railway** (database hosting and storage)  
 - Service providers who help us operate our business, bound by confidentiality agreements.  
 
 We may also share information if required by law or to protect our rights.
@@ -54,7 +55,7 @@ We may also share information if required by law or to protect our rights.
 
 ### 4. Data Storage & Security
 
-- Your data is stored securely on **Vercel** and **Neon** infrastructure.  
+- Your data is stored securely on **Vercel** and **Railway** infrastructure.  
 - We use encryption in transit (HTTPS) and at rest where applicable.  
 - Access to your data is restricted to authorized personnel only.  
 
@@ -67,7 +68,7 @@ Depending on your location, you may have rights under GDPR, CCPA, or other laws,
 - Requesting corrections or deletion.  
 - Opting out of certain data uses.  
 
-To exercise these rights, contact us at **daniel@maillink.co**.
+To exercise these rights, contact us at **${process.env.CONTACT_EMAIL}**.
 
 ---
 
@@ -88,7 +89,7 @@ Our service integrates with:
 - **Stripe** - [Stripe Privacy Policy](https://stripe.com/privacy)  
 - **Clerk** - [Clerk Privacy Policy](https://clerk.com/privacy)  
 - **Vercel** - [Vercel Privacy Policy](https://vercel.com/legal/privacy-policy)  
-- **Neon** - [Neon Privacy Policy](https://neon.tech/privacy-policy)  
+- **Railway** - [Railway Privacy Policy](https://railway.com/legal/privacy)  
 
 These providers have their own privacy practices.
 
@@ -103,7 +104,7 @@ We may update this Privacy Policy from time to time. Changes will be posted on t
 ### 9. Contact Us
 
 If you have questions about this Privacy Policy, contact us at:  
-**Email:** daniel@maillink.co  
+**Email:** ${process.env.CONTACT_EMAIL}  
 `.trim();
 
   return (

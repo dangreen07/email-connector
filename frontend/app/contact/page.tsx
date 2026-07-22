@@ -18,10 +18,10 @@ export default function ContactPage() {
             <p>
               You can reach us anytime at{" "}
               <a
-                href="mailto:daniel@maillink.co"
+                href={`mailto:${process.env.CONTACT_EMAIL}`}
                 className="underline underline-offset-4"
               >
-                daniel@maillink.co
+                {process.env.CONTACT_EMAIL}
               </a>
               .
             </p>
