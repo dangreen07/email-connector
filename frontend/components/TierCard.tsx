@@ -20,7 +20,12 @@ export const TierCard = ({
 
     if (targetIndex > currentIndex) return `Upgrade to ${tier.name}`;
     if (targetIndex < currentIndex) return `Downgrade to ${tier.name}`;
-    return "Current Plan";
+    if (isAuthenticated) {
+      return "Current Plan";
+    }
+    else {
+      return "Sign Up";
+    }
   };
 
   return (
