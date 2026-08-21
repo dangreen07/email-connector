@@ -531,6 +531,29 @@ export async function getOutlookMessageById(
   return outlookToGeneric(outlookMsg, identifier, environmentId);
 }
 
+export async function deleteOutlookMessageById(
+  identifier: string,
+  environmentId: string,
+  environmentName: string,
+  providerId: string,
+) {
+  const accessToken = await getAccessToken(
+    environmentName,
+    identifier,
+    environmentId,
+  );
+
+  const graphClient = getGraphClient(accessToken);
+
+  try {
+    await graphClient.api(`/me/messages/${providerId}`).delete() as Response;
+    return true;
+  }
+  catch (err) {
+    return false;
+  }
+}
+
 function outlookToGeneric(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   outlookMsg: any,

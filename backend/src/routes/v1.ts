@@ -16,6 +16,7 @@ import {
   sendOutlookEmail,
   handleOutlookWebhookProd,
   handleOutlookWebhook,
+  deleteOutlookMessageById,
 } from '../azure/outlook-connection';
 import {
   getGmailMessages,
@@ -748,7 +749,11 @@ export default async function v1Routes(fastify: FastifyInstance) {
       try {
         switch (provider) {
           case 'outlook': {
-            return response.status(501).send({ error: "Deleting Outlook emails not implemented yet!" });
+            const result = await deleteOutlookMessageById(identifier, environment.id, environment.name, providerId);
+            if (result) {
+              return response.status(200).send({ message: "Successfully deleted email!"});
+            }
+            return response.status(500).send({ error: "Failed to delete email!" });
           }
           case 'gmail': {
             const result = await deleteGmailMessageById(identifier, environmentId, providerId);
