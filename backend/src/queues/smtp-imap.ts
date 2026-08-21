@@ -29,7 +29,10 @@ export const smtpImapListen = async (job: Job<any, any, string>) => {
       user: credentials.email,
       pass: credentials.password,
     },
+    logger: false
   });
+
+  console.log(`Listening to SMTP/IMAP: ${credentials.email}`);
 
   await client.connect();
 

@@ -35,6 +35,18 @@ export async function connectSMTPIMAP(
   );
   const email = smtpCredentials.email;
 
+  const client = await connect({
+    imap: {
+      user: smtpCredentials.email,
+      host: smtpCredentials.imapServer,
+      port: smtpCredentials.imapPort,
+      tls: smtpCredentials.useSSL,
+      password: smtpCredentials.password,
+    },
+  });
+
+  client.end();
+
   const creds = await db.transaction(async (tx) => {
     let result: { id: string } | null = null;
 
@@ -212,8 +224,6 @@ export async function getSMTPIMAPMessageById(
   environmentId: string,
   providerId: string,
 ): Promise<EmailMessage> {
-  console.log(`Provider Code: ${providerId}`);
-
   const providerJson = JSON.parse(
     decrypt(providerId, process.env.ID_CREATION_SECRET!),
   ) as {
@@ -285,6 +295,97 @@ export async function getSMTPIMAPMessageById(
   }
 
   return smtpImapToGeneric(result, identifier, environmentId);
+}
+
+export async function deleteSMTPIMAPMessageById(
+  identifier: string,
+  environmentId: string,
+  providerId: string,
+) {
+  const providerJson = JSON.parse(
+    decrypt(providerId, process.env.ID_CREATION_SECRET!),
+  ) as {
+    type: 'uid' | 'message-id';
+    value: string;
+  };
+
+  const connection = await db
+    .select()
+    .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
+    .where(
+      and(
+        eq(connections.identifier, identifier),
+        eq(connections.environmentId, environmentId),
+        eq(connectionCredentials.providerCode, 'smtp-imap'),
+      ),
+    )
+    .then((rows) => rows.at(0) ?? null);
+
+  if (!connection || !connection.connection_credentials.credentials) {
+    console.error('No connection found for this identifier');
+    throw new Error('No connection found for this identifier');
+  }
+  const credentials = decrypt(
+    connection.connection_credentials.credentials,
+    process.env.CRED_ENCRYPTION_KEY!,
+  );
+  const decryptedCredentials: SMTPIMAPCredentials = JSON.parse(credentials);
+
+  const client = await connect({
+    imap: {
+      user: decryptedCredentials.email,
+      host: decryptedCredentials.imapServer,
+      port: decryptedCredentials.imapPort,
+      tls: decryptedCredentials.useSSL,
+      password: decryptedCredentials.password,
+    },
+  });
+
+  await client.openBox('INBOX');
+
+  // Search for the message by Message-ID header
+  let searchCriteria: Array<[string, string] | [string, string, string]>;
+  const fetchOptions = {
+    bodies: [''],
+    struct: true,
+  };
+
+  if (providerJson.type === 'message-id') {
+    searchCriteria = [['HEADER', 'Message-ID', providerJson.value]];
+  } else if (providerJson.type === 'uid') {
+    // If it is a UID, we can just delete here
+    try {
+      await client.deleteMessage(parseInt(providerJson.value))
+      client.end();
+      return true;
+    } catch (err) {
+      console.log(`Error deleting message: ${err}`);
+      return false;
+    }
+  } else {
+    // Handle unexpected types, though your 'as' assertion might prevent this at runtime
+    throw new Error(`Unsupported provider ID type: ${providerJson.type}`);
+  }
+
+  const result = await client
+    .search(searchCriteria, fetchOptions)
+    .then((value) => value.at(0) ?? null);
+
+  if (!result) {
+    throw Error(`No message found with Message-ID ${providerId}`);
+  }
+  try {
+    await client.deleteMessage(result.attributes.uid);
+    client.end();
+    return true;
+  } catch (err) {
+    console.log(`Error deleting message: ${err}`);
+    return false;
+  }
 }
 
 export async function smtpIMAPFlowToGeneric(

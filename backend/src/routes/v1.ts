@@ -31,6 +31,7 @@ import {
 import { decrypt } from '../encryption';
 import {
   connectSMTPIMAP,
+  deleteSMTPIMAPMessageById,
   getSMTPIMAPMessageById,
   getSMTPIMAPMessages,
   sendSMTPIMAPEmail,
@@ -758,12 +759,16 @@ export default async function v1Routes(fastify: FastifyInstance) {
           case 'gmail': {
             const result = await deleteGmailMessageById(identifier, environmentId, providerId);
             if (result == 200) {
-              return response.status(200).send({ message: "Sent email to trash!" });
+              return response.status(200).send({ message: "Successfully sent email to trash!" });
             }
             return response.status(500).send({ error: "Failed to trash email!" });
           }
           case 'smtp-imap': {
-            return response.status(501).send({ error: "Deleting SMTP/IMAP emails not implemented yet!" });
+            const result = await deleteSMTPIMAPMessageById(identifier, environmentId, providerId);
+            if (result) {
+              return response.status(200).send({ message: "Successfully deleted email!"});
+            }
+            return response.status(500).send({ error: "Failed to delete email!" });
           }
           default:
             return response
