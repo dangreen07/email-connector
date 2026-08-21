@@ -71,9 +71,11 @@ const SMTP_SAMPLE_BODY = {
 };
 
 const SEND_EMAIL_SAMPLE_BODY = {
-  to: ["recipient@example.com"],
+  to: ["example@example.com"],
   subject: "Hello from MailLink",
-  text: "Sent via the MailLink API Playground",
+  bodies: [
+    { contentType: "text", content: "Sent via the MailLink API Playground" },
+  ],
 };
 
 const ENDPOINTS: ApiEndpoint[] = [

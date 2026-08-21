@@ -1,6 +1,7 @@
 import crypto from 'crypto';
+import { SendEmail } from '../utils/types';
 
-function formatAddress(a: { name?: string; address: string }) {
+function formatAddress(a: { name?: string | null; address: string }) {
   if (!a.name) return a.address;
   // Quote name if it contains special chars; simple fallback
   const safeName =
@@ -8,7 +9,7 @@ function formatAddress(a: { name?: string; address: string }) {
   return `${safeName} <${a.address}>`;
 }
 
-function joinAddresses(addrs?: { name?: string; address: string }[]) {
+function joinAddresses(addrs?: { name?: string | null; address: string }[] | null) {
   if (!addrs || addrs.length === 0) return '';
   return addrs.map(formatAddress).join(', ');
 }
@@ -29,20 +30,8 @@ function base64UrlEncode(b64: string) {
 }
 
 export function buildRawEmail(
-  email: {
-    to: { name?: string; address: string }[];
-    cc?: { name?: string; address: string }[];
-    bcc?: { name?: string; address: string }[];
-    subject: string;
-    bodies: { contentType: 'text' | 'html'; content: string }[];
-    attachments?: { fileName: string; mimeType: string; content: string }[];
-    thread?: {
-      conversationId?: string;
-      inReplyTo?: string;
-      references?: string;
-    };
-  },
-  from: { name?: string; address: string } | string,
+  email: SendEmail,
+  from: { name: string | null; address: string } | string,
 ) {
   const CRLF = '\r\n';
 

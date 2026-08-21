@@ -19,6 +19,7 @@ export function strToEmailAddress(str: string): EmailAddress {
   }
   return {
     address: str,
+    name: null
   };
 }
 

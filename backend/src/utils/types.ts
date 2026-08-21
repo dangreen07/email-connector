@@ -1,12 +1,36 @@
-export interface EmailAddress {
-  name?: string;
-  address: string;
-}
+import { z } from "zod";
 
-export interface Body {
-  contentType: 'text' | 'html';
-  content: string;
-}
+const EmailAddressSchema = z.object({
+  name: z.string().nullish(),
+  address: z.string()
+});
+
+const RecipientSchema = z
+  .union([
+    z.string(),
+    EmailAddressSchema,
+    z.object({
+      name: z.string().nullish(),
+      email: z.string()
+    })
+  ])
+  .transform((val): EmailAddress => {
+    if (typeof val === "string") {
+      return { address: val };
+    }
+    if ("email" in val) {
+      return { name: val.name ?? undefined, address: val.email };
+    }
+    return { name: val.name ?? undefined, address: val.address };
+  });
+
+const BodySchema = z.object({
+  contentType: z.enum(["text", "html"]),
+  content: z.string()
+})
+
+export type EmailAddress = z.infer<typeof EmailAddressSchema>;
+export type Body = z.infer<typeof BodySchema>;
 
 export interface Attachment {
   id: string;
@@ -59,19 +83,25 @@ export interface IDPayload {
   environmentId: string;
 }
 
-export interface SendEmail {
-  to: EmailAddress[];
-  cc?: EmailAddress[];
-  bcc?: EmailAddress[];
-  subject: string;
-  bodies: Body[];
-  attachments?: { fileName: string; mimeType: string; content: string }[];
-  thread?: {
-    conversationId?: string;
-    inReplyTo?: string;
-    references?: string;
-  };
-}
+export const SendEmailSchema = z.object({
+  to: z.array(RecipientSchema),
+  cc: z.array(RecipientSchema).nullish(),
+  bcc: z.array(RecipientSchema).nullish(),
+  subject: z.string(),
+  bodies: z.array(BodySchema),
+  attachments: z.array(z.object({
+    fileName: z.string(),
+    mimeType: z.string(),
+    content: z.string()
+  })).nullish(),
+  thread: z.object({
+    conversationId: z.string().nullable(),
+    inReplyTo: z.string().nullable(),
+    references: z.string().nullable()
+  }).nullish()
+});
+
+export type SendEmail = z.infer<typeof SendEmailSchema>;
 
 export interface GmailCredentials {
   clientId: string;

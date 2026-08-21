@@ -815,7 +815,7 @@ export async function sendGmailEmail(
     );
   }
 
-  const fromAddr = { address: senderEmail, name: undefined };
+  const fromAddr = { address: senderEmail, name: null };
 
   const rawEmail = buildRawEmail(email, fromAddr);
 

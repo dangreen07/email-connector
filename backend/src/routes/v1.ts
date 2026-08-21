@@ -33,7 +33,7 @@ import {
   getSMTPIMAPMessages,
   sendSMTPIMAPEmail,
 } from '../smtp-imap/smtp-imap-connection';
-import { SendEmail, SMTPIMAPCredentials } from '../utils/types';
+import { SendEmail, SendEmailSchema, SMTPIMAPCredentials } from '../utils/types';
 import { queue } from '../queues';
 
 export default async function v1Routes(fastify: FastifyInstance) {
@@ -635,7 +635,11 @@ export default async function v1Routes(fastify: FastifyInstance) {
         providerCode: string;
       };
 
-      const email = request.body as SendEmail;
+      const emailParse = SendEmailSchema.safeParse(request.body);
+      const email = emailParse.data;
+      if (email === undefined) {
+        return response.status(400).send({ error: emailParse.error });
+      }
 
       const environment = await db
         .select()
