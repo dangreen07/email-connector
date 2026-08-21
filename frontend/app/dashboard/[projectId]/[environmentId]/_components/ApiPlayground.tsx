@@ -194,6 +194,15 @@ const ENDPOINTS: ApiEndpoint[] = [
         ],
       },
       {
+        name: "email",
+        label: "Connection email",
+        required: false,
+        kind: "text",
+        placeholder: "mailbox@example.com",
+        description:
+          "Optional. Picks a specific SMTP/IMAP connection when the identifier has several. Defaults to the newest.",
+      },
+      {
         name: "limit",
         label: "Limit",
         required: false,
@@ -244,6 +253,15 @@ const ENDPOINTS: ApiEndpoint[] = [
           { value: "gmail", label: "Gmail" },
           { value: "smtp-imap", label: "SMTP/IMAP" },
         ],
+      },
+      {
+        name: "email",
+        label: "Connection email",
+        required: false,
+        kind: "text",
+        placeholder: "mailbox@example.com",
+        description:
+          "Optional. Picks a specific SMTP/IMAP connection when the identifier has several. Defaults to the newest.",
       },
     ],
     sampleBody: SEND_EMAIL_SAMPLE_BODY,

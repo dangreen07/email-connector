@@ -49,6 +49,7 @@ export const smtpImapListen = async (job: Job<any, any, string>) => {
         msg,
         data.identifier,
         data.environmentId,
+        data.connection.email,
       );
       queue.add('webhook-notify', message, {
         removeOnComplete: true,

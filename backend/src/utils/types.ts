@@ -81,6 +81,10 @@ export interface IDPayload {
   provider: string;
   identifier: string;
   environmentId: string;
+  // Identifies which connection a message belongs to when an identifier has
+  // multiple connections for the same provider (e.g. several SMTP/IMAP
+  // accounts). Optional so previously issued ids keep decrypting.
+  email?: string;
 }
 
 export const SendEmailSchema = z.object({

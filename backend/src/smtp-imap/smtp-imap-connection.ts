@@ -7,7 +7,7 @@ import {
 } from '../db/schema';
 import { decrypt, encrypt } from '../encryption';
 import { ensureArray, strToEmailAddress } from '../utils';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { connect, Message } from 'imap-simple';
 import {
   EmailAddress,
@@ -152,7 +152,10 @@ export async function getSMTPIMAPMessages(
   identifier: string,
   environmentId: string,
   limit = 10,
+  connectionEmail?: string,
 ): Promise<EmailMessage[]> {
+  // An identifier can have multiple SMTP/IMAP connections. When connectionEmail
+  // is provided it selects a specific one, otherwise the newest is used.
   const connection = await db
     .select()
     .from(connections)
@@ -165,8 +168,13 @@ export async function getSMTPIMAPMessages(
         eq(connections.identifier, identifier),
         eq(connections.environmentId, environmentId),
         eq(connectionCredentials.providerCode, 'smtp-imap'),
+        ...(connectionEmail
+          ? [eq(connectionCredentials.email, connectionEmail)]
+          : []),
       ),
     )
+    .orderBy(desc(connectionCredentials.updatedAt))
+    .limit(1)
     .then((rows) => rows.at(0) ?? null);
 
   if (!connection || !connection.connection_credentials.credentials) {
@@ -214,7 +222,12 @@ export async function getSMTPIMAPMessages(
   client.end();
   return Promise.all(
     messages.map((message) =>
-      smtpImapToGeneric(message, identifier, environmentId),
+      smtpImapToGeneric(
+        message,
+        identifier,
+        environmentId,
+        connection.connection_credentials.email,
+      ),
     ),
   );
 }
@@ -223,6 +236,7 @@ export async function getSMTPIMAPMessageById(
   identifier: string,
   environmentId: string,
   providerId: string,
+  connectionEmail?: string,
 ): Promise<EmailMessage> {
   const providerJson = JSON.parse(
     decrypt(providerId, process.env.ID_CREATION_SECRET!),
@@ -231,6 +245,8 @@ export async function getSMTPIMAPMessageById(
     value: string;
   };
 
+  // Message ids issued after multi-account support carry the owning
+  // connection's email; prefer it over the fallback parameter.
   const connection = await db
     .select()
     .from(connections)
@@ -243,8 +259,13 @@ export async function getSMTPIMAPMessageById(
         eq(connections.identifier, identifier),
         eq(connections.environmentId, environmentId),
         eq(connectionCredentials.providerCode, 'smtp-imap'),
+        ...(connectionEmail
+          ? [eq(connectionCredentials.email, connectionEmail)]
+          : []),
       ),
     )
+    .orderBy(desc(connectionCredentials.updatedAt))
+    .limit(1)
     .then((rows) => rows.at(0) ?? null);
 
   if (!connection || !connection.connection_credentials.credentials) {
@@ -294,13 +315,19 @@ export async function getSMTPIMAPMessageById(
     throw Error(`No message found with Message-ID ${providerId}`);
   }
 
-  return smtpImapToGeneric(result, identifier, environmentId);
+  return smtpImapToGeneric(
+    result,
+    identifier,
+    environmentId,
+    connection.connection_credentials.email,
+  );
 }
 
 export async function deleteSMTPIMAPMessageById(
   identifier: string,
   environmentId: string,
   providerId: string,
+  connectionEmail?: string,
 ) {
   const providerJson = JSON.parse(
     decrypt(providerId, process.env.ID_CREATION_SECRET!),
@@ -309,6 +336,8 @@ export async function deleteSMTPIMAPMessageById(
     value: string;
   };
 
+  // Message ids issued after multi-account support carry the owning
+  // connection's email; prefer it over the fallback parameter.
   const connection = await db
     .select()
     .from(connections)
@@ -321,8 +350,13 @@ export async function deleteSMTPIMAPMessageById(
         eq(connections.identifier, identifier),
         eq(connections.environmentId, environmentId),
         eq(connectionCredentials.providerCode, 'smtp-imap'),
+        ...(connectionEmail
+          ? [eq(connectionCredentials.email, connectionEmail)]
+          : []),
       ),
     )
+    .orderBy(desc(connectionCredentials.updatedAt))
+    .limit(1)
     .then((rows) => rows.at(0) ?? null);
 
   if (!connection || !connection.connection_credentials.credentials) {
@@ -392,6 +426,7 @@ export async function smtpIMAPFlowToGeneric(
   message: FetchMessageObject,
   identifier: string,
   environmentId: string,
+  connectionEmail?: string,
 ): Promise<EmailMessage> {
   const source = message.source;
   if (!source) {
@@ -419,6 +454,7 @@ export async function smtpIMAPFlowToGeneric(
     identifier,
     environmentId,
     message.internalDate?.toString() ?? new Date().toISOString(),
+    connectionEmail,
   );
 }
 
@@ -426,6 +462,7 @@ export async function smtpImapToGeneric(
   message: Message,
   identifier: string,
   environmentId: string,
+  connectionEmail?: string,
 ): Promise<EmailMessage> {
   const email = await simpleParser(
     message.parts.find((part) => part.which === 'RFC822' || part.which === '')
@@ -452,6 +489,7 @@ export async function smtpImapToGeneric(
     identifier,
     environmentId,
     message.attributes.date.toISOString(),
+    connectionEmail,
   );
 }
 
@@ -464,6 +502,7 @@ function parsedEmailToGeneric(
   identifier: string,
   environmentId: string,
   date: string,
+  connectionEmail?: string,
 ) {
   const payload: IDPayload = {
     providerId: encrypt(
@@ -473,6 +512,7 @@ function parsedEmailToGeneric(
     provider: 'smtp-imap',
     identifier: identifier,
     environmentId: environmentId,
+    ...(connectionEmail ? { email: connectionEmail } : {}),
   };
   const id = encrypt(JSON.stringify(payload), process.env.ID_CREATION_SECRET!);
   const subject = email.subject;
@@ -577,7 +617,10 @@ export async function sendSMTPIMAPEmail(
   identifier: string,
   environmentId: string,
   email: SendEmail,
+  connectionEmail?: string,
 ) {
+  // An identifier can have multiple SMTP/IMAP connections. When connectionEmail
+  // is provided it selects a specific one, otherwise the newest is used.
   const connection = await db
     .select()
     .from(connections)
@@ -589,8 +632,14 @@ export async function sendSMTPIMAPEmail(
       and(
         eq(connections.environmentId, environmentId),
         eq(connections.identifier, identifier),
+        eq(connectionCredentials.providerCode, 'smtp-imap'),
+        ...(connectionEmail
+          ? [eq(connectionCredentials.email, connectionEmail)]
+          : []),
       ),
     )
+    .orderBy(desc(connectionCredentials.updatedAt))
+    .limit(1)
     .then((value) => value.at(0) ?? null);
 
   if (!connection) {

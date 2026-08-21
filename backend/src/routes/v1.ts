@@ -36,7 +36,12 @@ import {
   getSMTPIMAPMessages,
   sendSMTPIMAPEmail,
 } from '../smtp-imap/smtp-imap-connection';
-import { SendEmail, SendEmailSchema, SMTPIMAPCredentials } from '../utils/types';
+import {
+  IDPayload,
+  SendEmail,
+  SendEmailSchema,
+  SMTPIMAPCredentials,
+} from '../utils/types';
 import { queue } from '../queues';
 
 export default async function v1Routes(fastify: FastifyInstance) {
@@ -401,6 +406,10 @@ export default async function v1Routes(fastify: FastifyInstance) {
       const {
         identifier,
         providerCode,
+        // Optional: selects a specific connection when an identifier has
+        // multiple connections for the same providerCode (SMTP/IMAP only).
+        // Defaults to the newest connection.
+        email,
         limit = 10,
         // TODO: Implement offset and search
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -410,6 +419,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
       } = request.query as {
         identifier: string;
         providerCode: string;
+        email?: string;
         limit?: number;
         offset?: number;
         search?: string;
@@ -494,6 +504,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
               identifier,
               connection.environmentId,
               limit,
+              email,
             );
             return response.status(200).send({ messages });
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -539,12 +550,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
       }
 
       // Decrypt the message id to extract provider payload
-      let payload: {
-        providerId: string;
-        provider: string;
-        identifier: string;
-        environmentId: string;
-      };
+      let payload: IDPayload;
       try {
         const decoded = decrypt(id, process.env.ID_CREATION_SECRET!);
         payload = JSON.parse(decoded);
@@ -566,7 +572,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
           .send({ error: 'Could not find a valid connection' });
       }
 
-      const { providerId, provider, identifier, environmentId } = payload;
+      const { providerId, provider, identifier, environmentId, email } = payload;
 
       try {
         switch (provider) {
@@ -592,6 +598,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
               identifier,
               environmentId,
               providerId,
+              email,
             );
             return response.status(200).send({ message });
           }
@@ -636,6 +643,10 @@ export default async function v1Routes(fastify: FastifyInstance) {
       const query = request.query as {
         identifier: string;
         providerCode: string;
+        // Optional: selects a specific connection when an identifier has
+        // multiple connections for the same providerCode (SMTP/IMAP only).
+        // Defaults to the newest connection.
+        email?: string;
       };
 
       const emailParse = SendEmailSchema.safeParse(request.body);
@@ -679,6 +690,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
             query.identifier,
             environment.id,
             email,
+            query.email,
           );
           return response.status(200).send({ emailId: result });
         default:
@@ -718,12 +730,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
       }
 
       // Decrypt the message id to extract provider payload
-      let payload: {
-        providerId: string;
-        provider: string;
-        identifier: string;
-        environmentId: string;
-      };
+      let payload: IDPayload;
       try {
         const decoded = decrypt(id, process.env.ID_CREATION_SECRET!);
         payload = JSON.parse(decoded);
@@ -745,7 +752,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
           .send({ error: 'Could not find a valid connection' });
       }
 
-      const { providerId, provider, identifier, environmentId } = payload;
+      const { providerId, provider, identifier, environmentId, email } = payload;
 
       try {
         switch (provider) {
@@ -764,7 +771,7 @@ export default async function v1Routes(fastify: FastifyInstance) {
             return response.status(500).send({ error: "Failed to trash email!" });
           }
           case 'smtp-imap': {
-            const result = await deleteSMTPIMAPMessageById(identifier, environmentId, providerId);
+            const result = await deleteSMTPIMAPMessageById(identifier, environmentId, providerId, email);
             if (result) {
               return response.status(200).send({ message: "Successfully deleted email!"});
             }

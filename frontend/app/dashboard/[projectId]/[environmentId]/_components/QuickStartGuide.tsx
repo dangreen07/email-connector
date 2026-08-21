@@ -125,6 +125,15 @@ curl "https://api.maillink.co/v1/messages?identifier=user-123&providerCode=gmail
   -H "Authorization: Bearer sk_xxx"
 \`\`\`
 
+**Multiple SMTP/IMAP accounts:** an identifier can have several SMTP/IMAP connections. Pass the optional \`email\` query parameter to target a specific one; if omitted, the most recently updated connection is used.
+
+\`\`\`bash
+curl "https://api.maillink.co/v1/messages?identifier=user-123&providerCode=smtp-imap&email=work%40example.com" \
+  -H "Authorization: Bearer sk_xxx"
+\`\`\`
+
+Gmail and Outlook allow only one connection per identifier — connecting a new account replaces the previous one.
+
 ---
 
 ## References & tips

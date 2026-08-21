@@ -196,6 +196,12 @@ export async function handleOutlookCallback(
   }
 
   try {
+    // An identifier can only have one Outlook account connected at a time.
+    // Clear any cached tokens so the cache ends up containing only the newly
+    // authorized account (otherwise replacing an account would leave the old
+    // one cached and getOutlookAccessToken could pick it arbitrarily).
+    await redis.del(`msal-cache:${environment.id}:${stateToken.identifier}`);
+
     const pca = createMsalClient(
       stateToken.identifier,
       environment.id,
@@ -214,65 +220,89 @@ export async function handleOutlookCallback(
     const email = profile.mail ?? profile.userPrincipalName;
 
     const credentialsId = await db.transaction(async (tx) => {
-      // Check if any connections already connect to these credentials
-      let result: {
-        id: string;
-      } | null = null;
-      if (environment.name == 'production') {
-        // In production, only check if credentials exist for this email and provider code for this environment id
-        result = await tx
-          .select({
-            id: connectionCredentials.id,
-          })
-          .from(connectionCredentials)
-          .innerJoin(
-            connections,
-            eq(connections.connectionCredentials, connectionCredentials.id),
-          )
-          .where(
-            and(
-              eq(connections.environmentId, environment.id),
-              eq(connectionCredentials.email, email),
-              eq(connectionCredentials.providerCode, 'outlook'),
-            ),
-          )
-          .then((val) => val.at(0) ?? null);
-      } else {
-        result = await tx
-          .select({
-            id: connectionCredentials.id,
-          })
-          .from(connectionCredentials)
-          .innerJoin(
-            connections,
-            eq(connections.connectionCredentials, connectionCredentials.id),
-          )
-          .innerJoin(
-            environments,
-            eq(environments.id, connections.environmentId),
-          )
-          .where(
-            and(
-              eq(environments.name, 'development'),
-              eq(connectionCredentials.email, email),
-              eq(connectionCredentials.providerCode, 'outlook'),
-            ),
-          )
-          .limit(1) // Very important, as there could be dozens of these
-          .then((val) => val.at(0) ?? null);
-      }
-      if (result) {
-        // Now we should update the credentials
-        await tx
-          .update(connectionCredentials)
-          .set({
-            updatedAt: new Date(),
-          })
-          .where(eq(connectionCredentials.id, result.id));
-        return result.id;
-      } else {
-        // Insert new credentials and a new connection
-        const result = await tx
+      // An identifier may only have one Outlook connection. If one already
+      // exists, either re-authenticate it or replace its account.
+      const existing = await tx
+        .select({
+          connectionId: connections.id,
+          credentialsId: connectionCredentials.id,
+          email: connectionCredentials.email,
+          refreshJobId: connectionCredentials.refreshJobId,
+        })
+        .from(connections)
+        .innerJoin(
+          connectionCredentials,
+          eq(connectionCredentials.id, connections.connectionCredentials),
+        )
+        .where(
+          and(
+            eq(connections.environmentId, environment.id),
+            eq(connections.identifier, stateToken.identifier),
+            eq(connectionCredentials.providerCode, 'outlook'),
+          ),
+        )
+        .limit(1)
+        .then((val) => val.at(0) ?? null);
+
+      // Find credentials for the authorized email, or create them.
+      // In production, credentials are scoped to the environment; in
+      // development they are shared across all development environments.
+      const findOrCreateCredentials = async (): Promise<string> => {
+        let result: {
+          id: string;
+        } | null = null;
+        if (environment.name == 'production') {
+          result = await tx
+            .select({
+              id: connectionCredentials.id,
+            })
+            .from(connectionCredentials)
+            .innerJoin(
+              connections,
+              eq(connections.connectionCredentials, connectionCredentials.id),
+            )
+            .where(
+              and(
+                eq(connections.environmentId, environment.id),
+                eq(connectionCredentials.email, email),
+                eq(connectionCredentials.providerCode, 'outlook'),
+              ),
+            )
+            .then((val) => val.at(0) ?? null);
+        } else {
+          result = await tx
+            .select({
+              id: connectionCredentials.id,
+            })
+            .from(connectionCredentials)
+            .innerJoin(
+              connections,
+              eq(connections.connectionCredentials, connectionCredentials.id),
+            )
+            .innerJoin(
+              environments,
+              eq(environments.id, connections.environmentId),
+            )
+            .where(
+              and(
+                eq(environments.name, 'development'),
+                eq(connectionCredentials.email, email),
+                eq(connectionCredentials.providerCode, 'outlook'),
+              ),
+            )
+            .limit(1) // Very important, as there could be dozens of these
+            .then((val) => val.at(0) ?? null);
+        }
+        if (result) {
+          await tx
+            .update(connectionCredentials)
+            .set({
+              updatedAt: new Date(),
+            })
+            .where(eq(connectionCredentials.id, result.id));
+          return result.id;
+        }
+        const inserted = await tx
           .insert(connectionCredentials)
           .values({
             providerCode: 'outlook',
@@ -280,16 +310,58 @@ export async function handleOutlookCallback(
           })
           .returning({ id: connectionCredentials.id })
           .then((val) => val.at(0) ?? null);
-        if (!result) {
+        if (!inserted) {
           throw Error('Failed to insert connection credentials!');
         }
-        await tx.insert(connections).values({
-          environmentId: environment.id,
-          identifier: stateToken.identifier,
-          connectionCredentials: result.id,
-        });
-        return result.id;
+        return inserted.id;
+      };
+
+      if (existing) {
+        if (existing.email === email) {
+          // Re-authentication of the same account
+          await tx
+            .update(connectionCredentials)
+            .set({
+              updatedAt: new Date(),
+            })
+            .where(eq(connectionCredentials.id, existing.credentialsId));
+          return existing.credentialsId;
+        }
+        // Replacement: point the existing connection at the new account's
+        // credentials instead of creating a second connection
+        const newCredentialsId = await findOrCreateCredentials();
+        await tx
+          .update(connections)
+          .set({ connectionCredentials: newCredentialsId })
+          .where(eq(connections.id, existing.connectionId));
+        // Only delete the old credentials if nothing else references them
+        const stillReferenced = await tx
+          .select({ id: connections.id })
+          .from(connections)
+          .where(eq(connections.connectionCredentials, existing.credentialsId))
+          .limit(1);
+        if (stillReferenced.length === 0) {
+          if (existing.refreshJobId) {
+            try {
+              await queue.remove(existing.refreshJobId);
+            } catch {
+              // Job may have already completed or been removed
+            }
+          }
+          await tx
+            .delete(connectionCredentials)
+            .where(eq(connectionCredentials.id, existing.credentialsId));
+        }
+        return newCredentialsId;
       }
+
+      const credentialsId = await findOrCreateCredentials();
+      await tx.insert(connections).values({
+        environmentId: environment.id,
+        identifier: stateToken.identifier,
+        connectionCredentials: credentialsId,
+      });
+      return credentialsId;
     });
 
     if (environment.name == 'production') {

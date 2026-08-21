@@ -199,69 +199,91 @@ export async function handleGmailCallback(
   let credentialsExisted = false;
 
   const { credentialsId, connectionId } = await db.transaction(async (tx) => {
-    // Check if any connections already connect to these credentials
-    let result: {
-      id: string;
-      connectionId: string;
-    } | null = null;
-    if (environment.name == 'production') {
-      // In production, only check if credentials exist for this email and provider code for this environment id
-      result = await tx
-        .select({
-          id: connectionCredentials.id,
-          connectionId: connections.id,
-        })
-        .from(connectionCredentials)
-        .innerJoin(
-          connections,
-          eq(connections.connectionCredentials, connectionCredentials.id),
-        )
-        .where(
-          and(
-            eq(connections.environmentId, environment.id),
-            eq(connectionCredentials.email, email),
-            eq(connectionCredentials.providerCode, 'gmail'),
-          ),
-        )
-        .then((val) => val.at(0) ?? null);
-    } else {
-      result = await tx
-        .select({
-          id: connectionCredentials.id,
-          connectionId: connections.id,
-        })
-        .from(connectionCredentials)
-        .innerJoin(
-          connections,
-          eq(connections.connectionCredentials, connectionCredentials.id),
-        )
-        .innerJoin(environments, eq(environments.id, connections.environmentId))
-        .where(
-          and(
-            eq(environments.name, 'development'),
-            eq(connectionCredentials.email, email),
-            eq(connectionCredentials.providerCode, 'gmail'),
-          ),
-        )
-        .limit(1) // Very important, as there could be dozens of these
-        .then((val) => val.at(0) ?? null);
-    }
-    if (result) {
-      // Mark that credentials already existed; avoid setting up a duplicate Gmail watch
-      credentialsExisted = true;
-      // Now we should update the credentials
-      await tx
-        .update(connectionCredentials)
-        .set({
-          accessToken: tokenResponse.tokens.access_token,
-          refreshToken: tokenResponse.tokens.refresh_token,
-          expiresAt: expires_at,
-          updatedAt: new Date(),
-        })
-        .where(eq(connectionCredentials.id, result.id));
-      return { credentialsId: result.id, connectionId: result.connectionId };
-    } else {
-      // Insert new credentials and a new connection
+    // An identifier may only have one Gmail connection. If one already
+    // exists, either re-authenticate it or replace its account.
+    const existing = await tx
+      .select({
+        connectionId: connections.id,
+        credentialsId: connectionCredentials.id,
+        email: connectionCredentials.email,
+        refreshJobId: connectionCredentials.refreshJobId,
+      })
+      .from(connections)
+      .innerJoin(
+        connectionCredentials,
+        eq(connectionCredentials.id, connections.connectionCredentials),
+      )
+      .where(
+        and(
+          eq(connections.environmentId, environment.id),
+          eq(connections.identifier, stateToken.identifier),
+          eq(connectionCredentials.providerCode, 'gmail'),
+        ),
+      )
+      .limit(1)
+      .then((val) => val.at(0) ?? null);
+
+    // Find credentials for the authorized email, or create them.
+    // In production, credentials are scoped to the environment; in
+    // development they are shared across all development environments.
+    const findOrCreateCredentials = async (): Promise<string> => {
+      let result: {
+        id: string;
+      } | null = null;
+      if (environment.name == 'production') {
+        result = await tx
+          .select({
+            id: connectionCredentials.id,
+          })
+          .from(connectionCredentials)
+          .innerJoin(
+            connections,
+            eq(connections.connectionCredentials, connectionCredentials.id),
+          )
+          .where(
+            and(
+              eq(connections.environmentId, environment.id),
+              eq(connectionCredentials.email, email),
+              eq(connectionCredentials.providerCode, 'gmail'),
+            ),
+          )
+          .then((val) => val.at(0) ?? null);
+      } else {
+        result = await tx
+          .select({
+            id: connectionCredentials.id,
+          })
+          .from(connectionCredentials)
+          .innerJoin(
+            connections,
+            eq(connections.connectionCredentials, connectionCredentials.id),
+          )
+          .innerJoin(environments, eq(environments.id, connections.environmentId))
+          .where(
+            and(
+              eq(environments.name, 'development'),
+              eq(connectionCredentials.email, email),
+              eq(connectionCredentials.providerCode, 'gmail'),
+            ),
+          )
+          .limit(1) // Very important, as there could be dozens of these
+          .then((val) => val.at(0) ?? null);
+      }
+      if (result) {
+        // Mark that credentials already existed; avoid setting up a duplicate Gmail watch
+        credentialsExisted = true;
+        // Now we should update the credentials
+        await tx
+          .update(connectionCredentials)
+          .set({
+            accessToken: tokenResponse.tokens.access_token,
+            refreshToken: tokenResponse.tokens.refresh_token,
+            expiresAt: expires_at,
+            updatedAt: new Date(),
+          })
+          .where(eq(connectionCredentials.id, result.id));
+        return result.id;
+      }
       const credResult = await tx
         .insert(connectionCredentials)
         .values({
@@ -276,20 +298,72 @@ export async function handleGmailCallback(
       if (!credResult) {
         throw Error('Failed to insert connection credentials!');
       }
-      const connResult = await tx
-        .insert(connections)
-        .values({
-          environmentId: environment.id,
-          identifier: stateToken.identifier,
-          connectionCredentials: credResult.id,
-        })
-        .returning({ id: connections.id })
-        .then((val) => val.at(0) ?? null);
-      if (!connResult) {
-        throw Error('Failed to insert connection!');
+      return credResult.id;
+    };
+
+    if (existing) {
+      if (existing.email === email) {
+        // Re-authentication of the same account
+        credentialsExisted = true;
+        await tx
+          .update(connectionCredentials)
+          .set({
+            accessToken: tokenResponse.tokens.access_token,
+            refreshToken: tokenResponse.tokens.refresh_token,
+            expiresAt: expires_at,
+            updatedAt: new Date(),
+          })
+          .where(eq(connectionCredentials.id, existing.credentialsId));
+        return {
+          credentialsId: existing.credentialsId,
+          connectionId: existing.connectionId,
+        };
       }
-      return { credentialsId: credResult.id, connectionId: connResult.id };
+      // Replacement: point the existing connection at the new account's
+      // credentials instead of creating a second connection
+      const newCredentialsId = await findOrCreateCredentials();
+      await tx
+        .update(connections)
+        .set({ connectionCredentials: newCredentialsId })
+        .where(eq(connections.id, existing.connectionId));
+      // Only delete the old credentials if nothing else references them
+      const stillReferenced = await tx
+        .select({ id: connections.id })
+        .from(connections)
+        .where(eq(connections.connectionCredentials, existing.credentialsId))
+        .limit(1);
+      if (stillReferenced.length === 0) {
+        if (existing.refreshJobId) {
+          try {
+            await queue.remove(existing.refreshJobId);
+          } catch {
+            // Job may have already completed or been removed
+          }
+        }
+        await tx
+          .delete(connectionCredentials)
+          .where(eq(connectionCredentials.id, existing.credentialsId));
+      }
+      return {
+        credentialsId: newCredentialsId,
+        connectionId: existing.connectionId,
+      };
     }
+
+    const credentialsId = await findOrCreateCredentials();
+    const connResult = await tx
+      .insert(connections)
+      .values({
+        environmentId: environment.id,
+        identifier: stateToken.identifier,
+        connectionCredentials: credentialsId,
+      })
+      .returning({ id: connections.id })
+      .then((val) => val.at(0) ?? null);
+    if (!connResult) {
+      throw Error('Failed to insert connection!');
+    }
+    return { credentialsId, connectionId: connResult.id };
   });
 
   await redis.del(`gmail-state-token:${state}`);
