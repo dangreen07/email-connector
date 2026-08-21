@@ -6,3 +6,4 @@ export { default as ProviderConnections } from "./ProviderConnections";
 export { default as WebhooksManager } from "./WebhooksManager";
 export { default as LogsViewer } from "./LogsViewer";
 export { default as ConnectedAccounts } from "./ConnectedAccounts";
+export { default as ApiPlayground } from "./ApiPlayground";

@@ -20,6 +20,7 @@ import {
   WebhooksManager,
   LogsViewer,
   ConnectedAccounts,
+  ApiPlayground,
 } from "./_components";
 import { Button } from "@/components/ui/button";
 import { UpdateEnvironmentSettings } from "../../_actions";
@@ -215,6 +216,7 @@ export default function EnvironmentDashboard(props: {
               <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
               <TabsTrigger value="logs">Logs</TabsTrigger>
               <TabsTrigger value="connected-accounts">Connected Accounts</TabsTrigger>
+              <TabsTrigger value="playground">API Playground</TabsTrigger>
               <TabsTrigger value="settings">Project Settings</TabsTrigger>
             </TabsList>
           </div>
@@ -234,6 +236,7 @@ export default function EnvironmentDashboard(props: {
                 <SelectItem value="webhooks">Webhooks</SelectItem>
                 <SelectItem value="logs">Logs</SelectItem>
                 <SelectItem value="connected-accounts">Connected Accounts</SelectItem>
+                <SelectItem value="playground">API Playground</SelectItem>
                 <SelectItem value="settings">Project Settings</SelectItem>
               </SelectContent>
             </Select>
@@ -308,6 +311,11 @@ export default function EnvironmentDashboard(props: {
         <TabsContent value="connected-accounts" className="mt-3 flex-none">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 items-start gap-6">
             <ConnectedAccounts initialConnections={initialConnections} />
+          </div>
+        </TabsContent>
+        <TabsContent value="playground" className="mt-3 flex-none">
+          <div className="grid">
+            <ApiPlayground />
           </div>
         </TabsContent>
         <TabsContent value="settings" className="mt-3 flex-none">
