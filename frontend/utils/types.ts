@@ -37,3 +37,23 @@ export type Tier = {
   href: string;
   highlighted?: boolean;
 };
+
+export type Usage = {
+  // Billing period
+  periodStart: string;
+  periodEnd: string;
+
+  // Plan info
+  planName?: string;
+
+  // Inboxes
+  inboxesUsed: number;
+  inboxesIncluded: number;
+  inboxOveragePrice?: number; // USD per inbox
+
+  // API calls
+  apiCallsUsed: number; // raw calls this period
+  apiCallsIncluded: number; // raw calls included in plan
+  apiCallBillingUnit: number; // billing unit (e.g. 100000 for 100k)
+  apiOveragePricePer100k?: number; // USD per 100k calls (legacy / alternate)
+};

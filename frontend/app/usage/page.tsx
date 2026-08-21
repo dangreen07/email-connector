@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import ManageBillingButton from "@/components/manage-billing-button";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { Usage } from "../../../backend/src/utils/types";
+import { Usage } from "@/utils/types";
 
 /* Helper for number & currency formatting (locale aware) */
 function formatNumber(n: number) {
