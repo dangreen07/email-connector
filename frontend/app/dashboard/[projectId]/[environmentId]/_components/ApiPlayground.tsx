@@ -249,6 +249,23 @@ const ENDPOINTS: ApiEndpoint[] = [
     sampleBody: SEND_EMAIL_SAMPLE_BODY,
   },
   {
+    id: "delete-message-by-id",
+    method: "DELETE",
+    path: "/v1/messages/by-id",
+    tag: "Messages",
+    summary: "Delete a message by its API message id",
+    auth: "secret",
+    params: [
+      {
+        name: "id",
+        label: "Message id",
+        required: true,
+        kind: "text",
+        placeholder: "Opaque id returned by list/send endpoints",
+      },
+    ],
+  },
+  {
     id: "list-providers",
     method: "GET",
     path: "/v1/providers",
@@ -492,7 +509,9 @@ export default function ApiPlayground() {
   const [bodyValues, setBodyValues] = useState<Record<string, string>>({});
   const [response, setResponse] = useState<PlaygroundResponse | null>(null);
   const [sending, setSending] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<
+    "connection" | "message" | null
+  >(null);
   const [viewMode, setViewMode] = useState<"json" | "table">("json");
 
   const endpoint = useMemo(
@@ -674,13 +693,17 @@ export default function ApiPlayground() {
       });
     } finally {
       setSending(false);
-      setConfirmOpen(false);
+      setConfirmDelete(null);
     }
   }
 
   function onSendClick() {
     if (endpoint.id === "delete-connection") {
-      setConfirmOpen(true);
+      setConfirmDelete("connection");
+      return;
+    }
+    if (endpoint.id === "delete-message-by-id") {
+      setConfirmDelete("message");
       return;
     }
     send();
@@ -952,23 +975,30 @@ export default function ApiPlayground() {
         </Card>
       </div>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialog
+        open={confirmDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDelete(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete connection?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {confirmDelete === "message"
+                ? "Delete message?"
+                : "Delete connection?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes the connection and its stored
-              credentials. This action cannot be undone.
+              {confirmDelete === "message"
+                ? "This moves the message to the provider's trash. This action cannot be undone."
+                : "This permanently deletes the connection and its stored credentials. This action cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
-              onClick={(e) => {
-                e.preventDefault();
-                send();
-              }}
+              onClick={() => send()}
             >
               Delete
             </AlertDialogAction>

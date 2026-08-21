@@ -590,6 +590,83 @@ export async function getGmailMessageById(
   return gmailToGeneric(msg, identifier, environmentId);
 }
 
+export async function deleteGmailMessageById(
+  identifier: string,
+  environmentId: string,
+  providerId: string,
+) {
+  const oauthConnection = await db
+    .select()
+    .from(connections)
+    .innerJoin(
+      connectionCredentials,
+      eq(connectionCredentials.id, connections.connectionCredentials),
+    )
+    .where(
+      and(
+        eq(connections.environmentId, environmentId),
+        eq(connectionCredentials.providerCode, 'gmail'),
+        eq(connections.identifier, identifier),
+      ),
+    )
+    .limit(1)
+    .then((rows) => rows.at(0) ?? null);
+
+  if (!oauthConnection) {
+    throw new Error('No Gmail OAuth connection found. Connect Gmail first.');
+  }
+
+  const environment = await db
+    .select({ name: environments.name })
+    .from(environments)
+    .where(eq(environments.id, environmentId))
+    .then((val) => val.at(0) ?? null);
+
+  if (!environment) {
+    throw Error('Environment not found!');
+  }
+
+  const client = await getGoogleClient(environment.name, environmentId);
+
+  client.setCredentials({
+    access_token:
+      oauthConnection.connection_credentials.accessToken ?? undefined,
+    refresh_token:
+      oauthConnection.connection_credentials.refreshToken ?? undefined,
+    expiry_date: oauthConnection.connection_credentials.expiresAt?.getTime(),
+  });
+
+  if (
+    Date.now() >
+    (oauthConnection.connection_credentials.expiresAt?.getTime() ?? Date.now())
+  ) {
+    const accessToken = (await client.getAccessToken()).token;
+    await db
+      .update(connectionCredentials)
+      .set({
+        accessToken: accessToken,
+        refreshToken: client.credentials.refresh_token,
+        expiresAt: client.credentials.expiry_date
+          ? new Date(client.credentials.expiry_date)
+          : new Date(new Date().getTime() + 3600), // Default to an hour
+      })
+      .where(
+        eq(
+          connectionCredentials.id,
+          oauthConnection.connections.connectionCredentials,
+        ),
+      );
+  }
+
+  const gmail = google.gmail({ version: 'v1', auth: client });
+
+  const result = await gmail.users.messages.trash({
+    userId: "me",
+    id: providerId
+  });
+  return result.status;
+}
+
 function getHeaderValue(
   headers: gmail_v1.Schema$MessagePartHeader[],
   name: string,

@@ -11,7 +11,7 @@ tags:
   - name: Connections
     description: Operations to initiate and manage provider connections (Outlook, Gmail, SMTP/IMAP).
   - name: Messages
-    description: List, retrieve, and send emails via connected accounts.
+    description: List, retrieve, send, and delete emails via connected accounts.
   - name: Providers
     description: List supported providers.
 paths:
@@ -299,6 +299,37 @@ paths:
                   message:
                     $ref: "#/components/schemas/EmailMessageDetail"
                 required: [message]
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+    delete:
+      tags:
+        - Messages
+      summary: Delete a message by API message id
+      description: >
+        Deletes a single message by the opaque API message id. The message is
+        moved to the provider's trash. Requires environment secret key.
+      operationId: deleteMessageById
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Opaque API message id returned by list/send endpoints.
+      responses:
+        "200":
+          description: Message deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericMessageResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":

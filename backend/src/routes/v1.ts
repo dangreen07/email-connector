@@ -25,6 +25,7 @@ import {
   sendGmailEmail,
   handleGmailWebhookProd,
   handleGmailWebhook,
+  deleteGmailMessageById,
 } from '../google/gmail-connection';
 import { decrypt } from '../encryption';
 import {
@@ -685,6 +686,94 @@ export default async function v1Routes(fastify: FastifyInstance) {
       }
     },
   );
+
+  // Delete a message
+  fastify.delete('/messages/by-id',
+    {
+      config: {
+        rateLimit: {
+          max: 300,
+          timeWindow: 1000, // 1 second
+        },
+      },
+    },
+    async function handler(request, response) {
+      const headers = request.headers;
+      const authorization = headers.authorization;
+      if (!authorization) {
+        return response
+          .status(401)
+          .send({ error: 'Missing authorization header' });
+      }
+      const secretKey = authorization.split(' ')[1];
+
+      const { id } = request.query as { id: string };
+
+      if (!secretKey || !id) {
+        return response
+          .status(401)
+          .send({ error: 'Missing required parameters' });
+      }
+
+      // Decrypt the message id to extract provider payload
+      let payload: {
+        providerId: string;
+        provider: string;
+        identifier: string;
+        environmentId: string;
+      };
+      try {
+        const decoded = decrypt(id, process.env.ID_CREATION_SECRET!);
+        payload = JSON.parse(decoded);
+      } catch (err) {
+        request.log.error(err, 'Invalid message id');
+        return response.status(400).send({ error: 'Invalid message id' });
+      }
+
+      // Validate the secret key belongs to the same environment as in the id payload
+      const environment = await db
+        .select()
+        .from(environments)
+        .where(eq(environments.secretKey, secretKey))
+        .then((rows) => rows.at(0) ?? null);
+
+      if (!environment || environment.id !== payload.environmentId) {
+        return response
+          .status(401)
+          .send({ error: 'Could not find a valid connection' });
+      }
+
+      const { providerId, provider, identifier, environmentId } = payload;
+
+      try {
+        switch (provider) {
+          case 'outlook': {
+            return response.status(501).send({ error: "Deleting Outlook emails not implemented yet!" });
+          }
+          case 'gmail': {
+            const result = await deleteGmailMessageById(identifier, environmentId, providerId);
+            if (result == 200) {
+              return response.status(200).send({ message: "Sent email to trash!" });
+            }
+            return response.status(500).send({ error: "Failed to trash email!" });
+          }
+          case 'smtp-imap': {
+            return response.status(501).send({ error: "Deleting SMTP/IMAP emails not implemented yet!" });
+          }
+          default:
+            return response
+              .status(401)
+              .send({ error: 'Invalid provider code' });
+        }
+      } catch (err: any) {
+        const errorMessage = err?.message || 'Failed to fetch message';
+        const statusCode = err?.statusCode || 500;
+        request.log.error(err, errorMessage);
+        return response
+          .status(statusCode)
+          .send({ error: errorMessage, code: err?.code });
+      }
+  });
 
   // Return supported providers
   fastify.get(
