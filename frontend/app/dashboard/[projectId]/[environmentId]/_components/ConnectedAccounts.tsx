@@ -22,6 +22,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { Copy } from "lucide-react";
 import { useDashboardStore } from "@/lib/dashboard/dashboard-store-provider";
 import {
   getConnections,
@@ -71,6 +72,13 @@ export default function ConnectedAccounts({ initialConnections }: Props) {
     }
   }
 
+  const handleCopy = async (value: string, message: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast(message);
+    } catch {}
+  };
+
   async function handleDelete(connection: ConnectionInfo) {
     const result = await deleteConnection(connection.id);
     if ("error" in result) {
@@ -100,66 +108,122 @@ export default function ConnectedAccounts({ initialConnections }: Props) {
               No connected accounts yet. Use the API to connect a provider.
             </p>
           ) : (
-            <div className="divide-y">
-              {connections.map((conn) => {
-                const config = providerConfig[conn.providerCode] ?? {
-                  label: conn.providerCode,
-                  className: "bg-gray-100 text-gray-800 border-gray-200",
-                };
-                return (
-                  <div key={conn.id} className="flex items-center gap-4 py-3 text-sm">
-                    <Badge className={config.className}>{config.label}</Badge>
-                    <span className="min-w-0 flex-1 truncate">{conn.email}</span>
-                    <span className="hidden sm:block text-muted-foreground truncate max-w-[120px]">
-                      {conn.identifier}
-                    </span>
-                    <span className="hidden md:block text-muted-foreground font-mono text-xs truncate max-w-[100px]">
-                      {conn.id}
-                    </span>
-                    <span className="hidden lg:block text-muted-foreground text-xs whitespace-nowrap">
-                      {new Date(conn.updatedAt).toLocaleDateString()}
-                    </span>
-                    <AlertDialog
-                      open={deleteTarget?.id === conn.id}
-                      onOpenChange={(open) => {
-                        if (!open) setDeleteTarget(null);
-                      }}
-                    >
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive ml-auto shrink-0"
-                          onClick={() => setDeleteTarget(conn)}
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <th className="w-24 px-2 py-2 text-left font-medium">Provider</th>
+                  <th className="px-2 py-2 text-left font-medium">Email</th>
+                  <th className="w-[170px] hidden sm:table-cell px-2 py-2 text-left font-medium">
+                    Identifier
+                  </th>
+                  <th className="w-[150px] hidden md:table-cell px-2 py-2 text-left font-medium">
+                    Connection ID
+                  </th>
+                  <th className="hidden lg:table-cell px-2 py-2 text-right font-medium">
+                    Updated
+                  </th>
+                  <th className="w-20 px-2 py-2">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {connections.map((conn) => {
+                  const config = providerConfig[conn.providerCode] ?? {
+                    label: conn.providerCode,
+                    className: "bg-gray-100 text-gray-800 border-gray-200",
+                  };
+                  return (
+                    <tr key={conn.id}>
+                      <td className="px-2 py-3 align-middle">
+                        <Badge className={config.className}>{config.label}</Badge>
+                      </td>
+                      <td className="w-full max-w-0 px-2 py-3 align-middle">
+                        <button
+                          type="button"
+                          title="Copy email"
+                          onClick={() =>
+                            handleCopy(conn.email, "Copied email to clipboard!")
+                          }
+                          className="group flex items-center gap-1.5 text-left transition-colors"
                         >
-                          Delete
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remove connection?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently remove the {config.label} connection for{" "}
-                            <strong>{conn.email}</strong> (identifier:{" "}
-                            <strong>{conn.identifier}</strong>). The user will need to
-                            reconnect to use this provider again.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => handleDelete(conn)}
-                          >
-                            Remove
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                );
-              })}
-            </div>
+                          <span className="min-w-0 truncate">{conn.email}</span>
+                          <Copy className="h-3.5 w-3.5 shrink-0 opacity-60 group-hover:opacity-100" />
+                        </button>
+                      </td>
+                      <td className="w-[170px] hidden sm:table-cell px-2 py-3 align-middle">
+                        <button
+                          type="button"
+                          title="Copy identifier"
+                          onClick={() =>
+                            handleCopy(conn.identifier, "Copied identifier to clipboard!")
+                          }
+                          className="group flex items-center gap-1.5 text-left text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <span className="min-w-0 truncate">{conn.identifier}</span>
+                          <Copy className="h-3.5 w-3.5 shrink-0 opacity-60 group-hover:opacity-100" />
+                        </button>
+                      </td>
+                      <td className="w-[150px] hidden md:table-cell px-2 py-3 align-middle">
+                        <button
+                          type="button"
+                          title="Copy connection ID"
+                          onClick={() =>
+                            handleCopy(conn.id, "Copied connection ID to clipboard!")
+                          }
+                          className="group flex items-center gap-1.5 text-left font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <span className="min-w-0 truncate">{conn.id}</span>
+                          <Copy className="h-3.5 w-3.5 shrink-0 opacity-60 group-hover:opacity-100" />
+                        </button>
+                      </td>
+                      <td className="hidden lg:table-cell whitespace-nowrap px-2 py-3 text-right align-middle text-xs text-muted-foreground">
+                        {new Date(conn.updatedAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-2 py-3 text-right align-middle">
+                        <AlertDialog
+                          open={deleteTarget?.id === conn.id}
+                          onOpenChange={(open) => {
+                            if (!open) setDeleteTarget(null);
+                          }}
+                        >
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteTarget(conn)}
+                            >
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove connection?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently remove the {config.label} connection for{" "}
+                                <strong>{conn.email}</strong> (identifier:{" "}
+                                <strong>{conn.identifier}</strong>). The user will need to
+                                reconnect to use this provider again.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => handleDelete(conn)}
+                              >
+                                Remove
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </CardContent>
       </Card>
