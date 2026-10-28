@@ -7,7 +7,9 @@ import { stripe } from ".";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect, RedirectType } from "next/navigation";
 
-export async function createCheckoutLink(plan: "Free" | "Basic" | "Growth" | "Scale") {
+export async function createCheckoutLink(
+  plan: "Free" | "Basic" | "Growth" | "Scale",
+) {
   const user = await currentUser();
   if (!user) return;
 
@@ -200,7 +202,7 @@ export async function CreateCustomerPortal(): Promise<string | undefined> {
     .then((val) => val.at(0) ?? null);
   if (!customer) {
     console.log("No Customer!");
-    return "/pricing"; // Go to the pricing page!
+    return "/#pricing"; // Go to the pricing page!
   }
   const session = await stripe.billingPortal.sessions.create({
     customer: customer.stripeCustomerId,
