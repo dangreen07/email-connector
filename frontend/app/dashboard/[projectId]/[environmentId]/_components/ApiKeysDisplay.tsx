@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useDashboardStore } from "@/lib/dashboard/dashboard-store-provider";
 import { toast } from "sonner";
 import { regenerateKeys } from "@/app/dashboard/_actions";
+import posthog from "posthog-js";
 
 export default function ApiKeysDisplay() {
   const {
@@ -36,6 +37,7 @@ export default function ApiKeysDisplay() {
     if (!keys.error) {
       setPublishableKey(keys.publishableKey);
       setSecretKey(keys.secretKey);
+      posthog.capture("api_keys_regenerated");
       toast("API keys regenerated! Make sure to update your API calls!");
     } else {
       toast("Failed to regenerate API Keys!");

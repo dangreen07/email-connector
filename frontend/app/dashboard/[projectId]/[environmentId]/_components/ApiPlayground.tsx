@@ -34,6 +34,7 @@ import { useDashboardStore } from "@/lib/dashboard/dashboard-store-provider";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Copy, Loader2, Play } from "lucide-react";
+import posthog from "posthog-js";
 
 type Method = "GET" | "POST" | "DELETE";
 
@@ -699,6 +700,12 @@ export default function ApiPlayground() {
         ok: res.ok,
         durationMs,
         bodyText: text,
+      });
+      posthog.capture("api_playground_request_completed", {
+        endpoint_id: endpoint.id,
+        method: endpoint.method,
+        status_code: res.status,
+        succeeded: res.ok,
       });
     } catch (err) {
       setResponse({

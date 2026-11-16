@@ -29,6 +29,7 @@ import {
   deleteConnection,
 } from "@/app/dashboard/_actions";
 import type { ConnectionInfo } from "@/app/dashboard/_actions";
+import posthog from "posthog-js";
 
 type Props = {
   initialConnections: ConnectionInfo[];
@@ -86,6 +87,9 @@ export default function ConnectedAccounts({ initialConnections }: Props) {
       return;
     }
     setConnections((prev) => prev.filter((c) => c.id !== connection.id));
+    posthog.capture("connection_deleted", {
+      provider: connection.providerCode,
+    });
     toast.success(`${providerConfig[connection.providerCode]?.label ?? connection.providerCode} connection removed`);
     setDeleteTarget(null);
   }

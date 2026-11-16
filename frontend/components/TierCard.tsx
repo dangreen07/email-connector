@@ -78,6 +78,7 @@ export const TierCard = ({
               highlighted={tier.highlighted}
               cta={getActionLabel()}
               disabled={getActionLabel() === "Current Plan"}
+              planTarget={tier.name}
             />
           </form>
         ) : (

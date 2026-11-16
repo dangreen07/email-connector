@@ -40,6 +40,7 @@ import {
   DeleteWebhook,
   UpdateWebhook,
 } from "@/app/dashboard/_actions";
+import posthog from "posthog-js";
 
 export default function WebhooksManager() {
   const { environmentId, webhooks, setWebhooks } = useDashboardStore(
@@ -104,6 +105,7 @@ export default function WebhooksManager() {
           w.id === editing.id ? { ...w, name, url, active } : w
         )
       );
+      posthog.capture("webhook_updated", { active });
       toast.success("Webhook updated.");
     } else {
       const newW = await CreateWebhook({
@@ -114,6 +116,7 @@ export default function WebhooksManager() {
       });
       if (newW) {
         setWebhooks([newW, ...webhooks]);
+        posthog.capture("webhook_created", { active });
         toast.success("Webhook created.");
       }
     }
@@ -148,6 +151,7 @@ export default function WebhooksManager() {
     const newList = [...webhooks].filter((x) => x.id !== deleteTarget.id);
     await DeleteWebhook(deleteTarget.id, deleteTarget.environmentId);
     setWebhooks(newList);
+    posthog.capture("webhook_deleted");
     setDeleteTarget(null);
     toast.success(`Deleted webhook "${name}". `);
   }

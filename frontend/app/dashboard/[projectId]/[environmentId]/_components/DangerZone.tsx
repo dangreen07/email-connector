@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteProject } from "@/app/dashboard/_actions";
 import { useDashboardStore } from "@/lib/dashboard/dashboard-store-provider";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 
 export default function DangerZone() {
   const { projectName } = useDashboardStore((state) => state);
@@ -59,6 +60,7 @@ export default function DangerZone() {
                     if (res && "error" in res) {
                       alert(res.error);
                     } else {
+                      posthog.capture("project_deleted");
                       router.push("/dashboard");
                     }
                   } catch {

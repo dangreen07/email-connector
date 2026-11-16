@@ -4,6 +4,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CreateCustomerPortal } from "@/utils/stripe/actions";
+import posthog from "posthog-js";
 
 export default function ManageBillingButton() {
   const [loading, setLoading] = useState(false);
@@ -20,6 +21,7 @@ export default function ManageBillingButton() {
         throw new Error("No billing portal URL available.");
       }
       // Redirect the browser to Stripe's customer portal
+      posthog.capture("billing_portal_opened");
       window.location.href = url;
     } catch (err: unknown) {
       console.error("CreateCustomerPortal error", err);

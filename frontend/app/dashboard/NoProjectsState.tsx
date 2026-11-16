@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { CreateProject } from "./_actions";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 
 export default function NoProjectsState() {
     const [projectName, setProjectName] = useState("");
@@ -27,6 +28,7 @@ export default function NoProjectsState() {
                         if (result.error) {
                             alert(result.error);
                         } else {
+                            posthog.capture("project_created", { creation_surface: "onboarding" });
                             router.push(`/dashboard/${result.projectId}/${result.environmentId}`);
                         }
                     }}>Create</Button>

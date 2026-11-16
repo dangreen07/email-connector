@@ -1,16 +1,44 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { SignInButton, SignUpButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { useEffect, useRef, useState } from "react";
+import { SignInButton, SignUpButton, Show, useUser } from "@clerk/nextjs";
 import Container from "@/components/Container";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
 import UserMenu from "./UserMenu";
+import posthog from "posthog-js";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { user } = useUser();
+  const identifiedUserId = useRef<string | null>(null);
+  const userId = user?.id;
+  const email = user?.primaryEmailAddress?.emailAddress;
+  const name = user?.fullName ?? user?.firstName;
+
+  useEffect(() => {
+    if (userId) {
+      if (identifiedUserId.current === userId) return;
+
+      if (identifiedUserId.current) {
+        posthog.reset();
+      }
+
+      posthog.identify(userId, {
+        ...(email ? { email } : {}),
+        ...(name ? { name } : {}),
+      });
+      identifiedUserId.current = userId;
+      return;
+    }
+
+    if (identifiedUserId.current) {
+      posthog.reset();
+      identifiedUserId.current = null;
+    }
+  }, [email, name, userId]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -62,7 +90,7 @@ export default function Header() {
 
         <div className="hidden md:flex items-center gap-4">
           <ThemeToggle />
-          <SignedOut>
+          <Show when="signed-out">
             <SignInButton>
               <button className="px-4 py-2 text-sm font-medium rounded-md border border-foreground/20 hover:border-foreground/40 text-foreground/90 bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500">
                 Log in
@@ -73,8 +101,8 @@ export default function Header() {
                 Get Started
               </button>
             </SignUpButton>
-          </SignedOut>
-          <SignedIn>
+          </Show>
+          <Show when="signed-in">
             <Link
               href="/dashboard"
               className="text-foreground/80 hover:text-foreground transition-colors"
@@ -82,7 +110,7 @@ export default function Header() {
               Dashboard
             </Link>
             <UserMenu />
-          </SignedIn>
+          </Show>
         </div>
 
         <div className="md:hidden">
@@ -146,7 +174,7 @@ export default function Header() {
                 <ThemeToggle />
               </div>
               <div className="mt-2 flex items-center gap-3">
-                <SignedOut>
+                <Show when="signed-out">
                   <SignInButton>
                     <button className="flex-1 px-4 py-2 text-sm font-medium rounded-md border border-foreground/20 text-foreground/90">
                       Log in
@@ -157,8 +185,8 @@ export default function Header() {
                       Get Started
                     </button>
                   </SignUpButton>
-                </SignedOut>
-                <SignedIn>
+                </Show>
+                <Show when="signed-in">
                   <Link
                     href="/dashboard"
                     className="text-foreground/80 hover:text-foreground transition-colors"
@@ -166,7 +194,7 @@ export default function Header() {
                     Dashboard
                   </Link>
                   <UserMenu />
-                </SignedIn>
+                </Show>
               </div>
             </nav>
           </Container>

@@ -19,6 +19,7 @@ import { auth } from "@clerk/nextjs/server";
 import { and, eq, inArray, desc, count } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { encrypt } from "@/utils/encryption";
+import { emitPosthogLog, SeverityNumber } from "@/instrumentation";
 
 function generateApiKey(prefix: string) {
   return `${prefix}_${randomBytes(24).toString("hex")}`;
@@ -90,8 +91,17 @@ export async function CreateProject(name: string) {
       }
       return { projectId, environmentId };
     });
+    emitPosthogLog("project creation completed", SeverityNumber.INFO, {
+      event: "project_creation_completed",
+      default_environment_created: true,
+      status: "success",
+    });
     return { projectId: result.projectId, environmentId: result.environmentId };
   } catch {
+    emitPosthogLog("project creation completed", SeverityNumber.ERROR, {
+      event: "project_creation_completed",
+      status: "failed",
+    });
     return { error: "Failed to create project" };
   }
 }
@@ -193,9 +203,19 @@ export async function CreateProductionEnvironment(
       return { environmentId: newEnvironmentId } as const;
     });
 
+    emitPosthogLog("production environment creation completed", SeverityNumber.INFO, {
+      event: "production_environment_creation_completed",
+      initialization_mode: mode,
+      status: "success",
+    });
     return result;
   } catch (error) {
     console.error(error);
+    emitPosthogLog("production environment creation completed", SeverityNumber.ERROR, {
+      event: "production_environment_creation_completed",
+      initialization_mode: mode,
+      status: "failed",
+    });
     return { error: "Failed to create production environment" } as const;
   }
 }

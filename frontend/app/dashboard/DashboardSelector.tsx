@@ -25,6 +25,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { CreateProductionEnvironment, CreateProject } from "./_actions";
+import posthog from "posthog-js";
 
 export default function DashboardSelector({
   projects,
@@ -135,6 +136,9 @@ export default function DashboardSelector({
                           result.projectId &&
                           result.environmentId
                         ) {
+                          posthog.capture("project_created", {
+                            creation_surface: "dashboard_selector",
+                          });
                           setNewProjectName("");
                           setIsNewProjectOpen(false);
                           router.push(
@@ -257,6 +261,9 @@ export default function DashboardSelector({
                               if (res && "error" in res) {
                                 alert(res.error);
                               } else if (res && res.environmentId) {
+                                posthog.capture("production_environment_created", {
+                                  initialization_mode: prodInitMode,
+                                });
                                 setIsCreateProdOpen(false);
                                 navigateTo(activeProject.id, res.environmentId);
                               }

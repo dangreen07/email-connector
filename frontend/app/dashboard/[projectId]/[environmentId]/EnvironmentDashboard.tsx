@@ -28,6 +28,7 @@ import { DashboardProvider } from "@/utils/types";
 import type { ConnectionInfo } from "@/app/dashboard/_actions";
 import { Webhook, Log } from "@/utils/db/schema";
 import { useAuth } from "@clerk/nextjs";
+import posthog from "posthog-js";
 
 export default function EnvironmentDashboard(props: {
   projectId: string;
@@ -268,7 +269,7 @@ export default function EnvironmentDashboard(props: {
                         topicName: gmailTopicName,
                       }
                     : undefined;
-                await UpdateEnvironmentSettings(
+                const result = await UpdateEnvironmentSettings(
                   projectId,
                   environmentId,
                   projectName,
@@ -278,7 +279,15 @@ export default function EnvironmentDashboard(props: {
                   outlookCredentials,
                   gmailCredentials
                 );
-                setChanged(false);
+                if (!("error" in result)) {
+                  posthog.capture("environment_settings_saved", {
+                    environment_type: environmentNameProp,
+                    outlook_enabled: outlookEnabled,
+                    gmail_enabled: gmailEnabled,
+                    imap_enabled: imapEnabled,
+                  });
+                  setChanged(false);
+                }
                 setIsSaving(false);
               }}
             >

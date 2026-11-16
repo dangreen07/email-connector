@@ -8,7 +8,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "@/components/ui/sonner";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { PostHogProvider } from "@/components/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,44 +49,44 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider
-      waitlistUrl="/waitlist"
-      appearance={{
-        variables: {
-          colorPrimary: "#4f46e5",
-          colorBackground: "var(--background)",
-          colorText: "var(--foreground)",
-          colorInputBackground:
-            "color-mix(in oklab, var(--foreground) 6%, transparent)",
-          colorInputText: "var(--foreground)",
-        },
-        elements: {
-          card: "bg-background/95 backdrop-blur border border-foreground/10 shadow-xl",
-          headerTitle: "text-foreground",
-          headerSubtitle: "text-foreground/70",
-          formButtonPrimary: "bg-indigo-600 hover:bg-indigo-500 text-white",
-          socialButtonsBlockButton:
-            "border border-foreground/20 hover:bg-foreground/5",
-          formFieldLabel: "text-foreground/80",
-          input:
-            "bg-foreground/5 border border-foreground/20 text-foreground placeholder:text-foreground/50",
-          footerActionText: "text-foreground/80",
-          // User profile / user button popover overrides
-          userButtonPopoverCard:
-            "bg-background/95 backdrop-blur border border-foreground/10 !text-foreground",
-          userButtonPopoverActionButton:
-            "!text-foreground hover:bg-foreground/5",
-          userButtonPopoverActionButtonIcon: "!text-foreground",
-          userButtonPopoverActionButtonText: "!text-foreground",
-          userButtonPopoverFooter: "!text-foreground/70",
-          userPreviewMainIdentifier: "!text-foreground",
-          userPreviewSecondaryIdentifier: "!text-foreground/70",
-        },
-      }}
-    >
-      <html lang="en" className="h-full" suppressHydrationWarning>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased h-full bg-background text-foreground overflow-auto`}
+    <html lang="en" className="h-full" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased h-full bg-background text-foreground overflow-auto`}
+      >
+        <ClerkProvider
+          waitlistUrl="/waitlist"
+          appearance={{
+            variables: {
+              colorPrimary: "#4f46e5",
+              colorBackground: "var(--background)",
+              colorForeground: "var(--foreground)",
+              colorInput:
+                "color-mix(in oklab, var(--foreground) 6%, transparent)",
+              colorInputForeground: "var(--foreground)",
+            },
+            elements: {
+              card: "bg-background/95 backdrop-blur border border-foreground/10 shadow-xl",
+              headerTitle: "text-foreground",
+              headerSubtitle: "text-foreground/70",
+              formButtonPrimary: "bg-indigo-600 hover:bg-indigo-500 text-white",
+              socialButtonsBlockButton:
+                "border border-foreground/20 hover:bg-foreground/5",
+              formFieldLabel: "text-foreground/80",
+              input:
+                "bg-foreground/5 border border-foreground/20 text-foreground placeholder:text-foreground/50",
+              footerActionText: "text-foreground/80",
+              // User profile / user button popover overrides
+              userButtonPopoverCard:
+                "bg-background/95 backdrop-blur border border-foreground/10 !text-foreground",
+              userButtonPopoverActionButton:
+                "!text-foreground hover:bg-foreground/5",
+              userButtonPopoverActionButtonIcon: "!text-foreground",
+              userButtonPopoverActionButtonText: "!text-foreground",
+              userButtonPopoverFooter: "!text-foreground/70",
+              userPreviewMainIdentifier: "!text-foreground",
+              userPreviewSecondaryIdentifier: "!text-foreground/70",
+            },
+          }}
         >
           <ThemeProvider
             attribute="class"
@@ -96,16 +95,14 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <Header />
-            <PostHogProvider>
-              <main className="min-h-[calc(100vh-9.5rem)]">{children}</main>
-            </PostHogProvider>
+            <main className="min-h-[calc(100vh-9.5rem)]">{children}</main>
             <Footer />
             <Toaster />
           </ThemeProvider>
           <Analytics />
           <SpeedInsights />
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }
