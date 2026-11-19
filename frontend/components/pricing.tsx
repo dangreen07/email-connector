@@ -100,7 +100,7 @@ export default function Pricing({
         </div>
 
         {/* Enterprise Section */}
-        <div className="mt-12 mx-auto max-w-3xl rounded-2xl border border-foreground/10 bg-muted/30 p-8 text-center">
+        {/* <div className="mt-12 mx-auto max-w-3xl rounded-2xl border border-foreground/10 bg-muted/30 p-8 text-center">
           <h3 className="text-xl font-semibold">Enterprise</h3>
           <p className="mt-2 text-sm text-foreground/80">
             For organizations with more than 20,000 inboxes or advanced
@@ -120,7 +120,7 @@ export default function Pricing({
               Contact Sales
             </a>
           </div>
-        </div>
+        </div> */}
 
         <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-foreground/70">
           Pricing is per active inbox connection, with transparent overages for
